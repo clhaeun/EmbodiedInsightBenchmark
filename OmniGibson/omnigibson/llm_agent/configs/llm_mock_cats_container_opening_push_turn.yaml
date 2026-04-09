@@ -1,0 +1,92 @@
+# Mock LLM responses for container_opening_push_turn (CATS Decorative Pattern Task A)
+#
+# Pipeline (v2):
+#   Probe 0 → Stage 1 (exploration) → Probe 1 → Analysis & Tool Selection
+#   → Stage 3 (execution) → Probe 3
+#
+# Response order:
+#   1.  Probe 0 (demo observation — skipped if no demos)
+#   2-6.  Stage 1 exploration (5 actions + DONE_EXPLORING)
+#   7.  Probe 1 (context feature reflection)
+#   8.  Analysis & Tool Selection (unified call)
+#   9-12. Stage 3 execution (technique + retrieve + place + DONE)
+#   13. Probe 3 (adaptation reflection)
+
+responses:
+  # NOTE: Probe 0 is SKIPPED when demo_image_paths is empty.
+  # The first response goes directly to Stage 1 Step 1.
+
+  # --- Stage 1: Exploration ---
+  - "Thought: Let me examine the container up close to understand its mechanism.\nAction: NAVIGATE_TO[container, close_up]"
+
+  - "Thought: The lid has visible vertical grooves suggesting screw threads. Let me try twisting counterclockwise to see if it unscrews.\nAction: TWIST[lid, counterclockwise]"
+
+  - "Thought: Interesting - the lid rotates but with 0.0mm vertical displacement. No progressive rise despite 15 degrees of rotation. The periodic catches every 60 degrees are unusual for screw threads. Let me test downward pressure.\nAction: PRESS[lid, downward]"
+
+  - "Thought: The lid is spring-loaded (2.1mm displacement at 3.5N, spring constant ~1667 N/m). It returns to position when released. Let me check if the grooves are actual threads.\nAction: TOUCH[lid_surface]"
+
+  - "Thought: Critical finding - the grooves are only 0.3mm deep and do NOT follow a helical pattern. They are decorative. Combined with the spring-loaded behavior and rotation without rise, this is not a screw mechanism. I have enough information.\nAction: DONE_EXPLORING[]"
+
+  # --- Probe 1: Context feature reflection ---
+  - |
+    Key findings from exploration:
+    1. TWIST reveals rotation without vertical rise (0.0mm) — inconsistent with screw threading
+    2. Periodic catches every 60 degrees during rotation — internal protrusions, not thread engagement
+    3. PRESS reveals spring-loaded lid: 2.1mm at 3.5N, linear spring constant 1667 N/m
+    4. TOUCH reveals grooves are 0.3mm deep and non-helical — purely decorative
+    5. PULL upward at 8N produces 0mm displacement — lid is locked
+
+    The visual grooves strongly suggest screw-turn, but tactile and mechanical data rule this out.
+    The spring-loaded vertical compliance + catch pattern suggests a push-and-turn safety mechanism.
+
+  # --- Analysis & Tool Selection (unified) ---
+  - |
+    === Situation Analysis ===
+    The container lid has decorative vertical grooves that visually resemble screw threads.
+    However, exploration data clearly shows:
+    - No helical threading (groove depth 0.3mm, no helical pattern)
+    - Rotation without vertical rise (0.0mm in both directions)
+    - Spring-loaded vertical compliance (1667 N/m, 2.1mm at 3.5N)
+    - Internal catches every 60 degrees (radial protrusions, not threads)
+    - Lid locked against upward pull (0.0mm at 8N)
+
+    === Demo Comparison ===
+    Demo 3 (push-and-turn, medicine bottle) is the best match:
+    - Spring-loaded lid requiring downward pressure before rotation becomes effective
+    - The clicking sound and separation after combined press+turn
+    - Child-safety mechanism: rotation alone is insufficient
+
+    Demo 1 (screw-turn) is the visual trap — matches the decorative grooves but
+    contradicts the mechanical evidence (no vertical rise during rotation).
+
+    === Execution Plan ===
+    Apply push-and-turn: press with ~3.5N (matching observed spring displacement)
+    and rotate ~120 degrees while maintaining downward pressure.
+
+    SELECTED_TOOL: push_and_turn
+
+  # --- Stage 3: Execution ---
+  - |
+    Thought: Apply the push-and-turn technique. The spring data shows 2.1mm at 3.5N with max
+    at 3.0mm/5.0N, so 3.5N should engage the latch. Rotation of 120 degrees should clear the
+    internal catches. I must hold the downward pressure while rotating simultaneously — if I
+    release pressure to reposition my grip, the spring will push the lid back and re-engage.
+    Action: APPLY_TECHNIQUE[lid]
+    Parameters: {"downward_force_N": 3.5, "rotation_degrees": 120, "simultaneous": true, "timing_delay_s": 0.3}
+
+  - "Thought: The lid is open. I can see the key inside. Let me retrieve it.\nAction: GRASP[key]"
+
+  - "Thought: Now place the key on the countertop to complete the task.\nAction: PLACE_ON_TOP[key, countertop]"
+
+  - "DONE"
+
+  # --- Probe 3: Adaptation reflection ---
+  - |
+    I adapted the technique parameters based on exploration data rather than copying Demo 3 exactly:
+    - Force: Used 3.5N based on the observed spring displacement (2.1mm at 3.5N), which should
+      depress the lid enough to disengage the latch without exceeding the hard stop at 5.0N.
+    - Rotation: Used 120 degrees based on the catch pattern (every 60 degrees) — rotating
+      past two catch points should fully clear the latch mechanism.
+    - The decorative grooves initially suggested screw-turn (Demo 1), but the tactile data
+      (0.3mm depth, non-helical) and mechanical data (no vertical rise) ruled this out.
+    - The spring-loaded behavior was the key insight connecting to Demo 3's push-and-turn principle.

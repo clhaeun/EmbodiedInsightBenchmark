@@ -1,0 +1,51 @@
+(define (problem sweep_dustpan-0)
+    (:domain omnigibson)
+
+    (:objects
+        ; Sweeping tools
+        broom.n.01_1 - broom.n.01
+        dustpan.n.02_1 - dustpan.n.02
+
+        ; Breadcrumb particle system (created at init on the floor)
+        breadcrumb.n.01_1 - breadcrumb.n.01
+
+        ; Stair markers (rubber_mat assets used as location markers)
+        floor_landing.n.01_1 - floor_landing.n.01
+        stair_first_step.n.01_1 - stair_first_step.n.01
+
+        ; Heavy objects (can weigh down dustpan for method 1)
+        textbook.n.01_1 - textbook.n.01
+
+        ; Scene furniture
+        stairs.n.01_1 - stairs.n.01
+        wall.n.01_1 - wall.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        ; Objects on the floor
+        (ontop broom.n.01_1 floor.n.01_1)
+        (ontop dustpan.n.02_1 floor.n.01_1)
+        (ontop textbook.n.01_1 floor.n.01_1)
+        (ontop agent.n.01_1 floor.n.01_1)
+
+        ; Breadcrumbs scattered on the floor
+        (covered floor.n.01_1 breadcrumb.n.01_1)
+        (future breadcrumb.n.01_1)
+
+        ; Room assignments (upper floor — living_room connects to stairs)
+        (inroom floor.n.01_1 living_room)
+        (inroom stairs.n.01_1 living_room)
+        (inroom wall.n.01_1 living_room)
+        (inroom floor_landing.n.01_1 living_room)
+        (inroom stair_first_step.n.01_1 living_room)
+    )
+
+    (:goal
+        (and
+            (covered dustpan.n.02_1 breadcrumb.n.01_1)
+            (not (covered floor.n.01_1 breadcrumb.n.01_1))
+        )
+    )
+)

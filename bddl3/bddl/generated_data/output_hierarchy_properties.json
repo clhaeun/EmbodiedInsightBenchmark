@@ -138866,6 +138866,40 @@
                                     "wetable": {},
                                     "wrinkleable": {}
                                   }
+                                },
+                                {
+                                  "name": "rubber_mat.n.01",
+                                  "hasModel": true,
+                                  "categories": [
+                                    "rubber_mat"
+                                  ],
+                                  "abilities": {
+                                    "disinfectable": {},
+                                    "dustyable": {},
+                                    "grassyable": {},
+                                    "moldyable": {},
+                                    "nonSubstance": {},
+                                    "particleRemover": {
+                                      "conditions": {
+                                        "water.n.06": [],
+                                        "dust.n.01": null,
+                                        "dirt.n.02": null,
+                                        "debris.n.01": null
+                                      },
+                                      "default_visual_conditions": null,
+                                      "default_non_fluid_conditions": null,
+                                      "default_fluid_conditions": [],
+                                      "method": "adjacency"
+                                    },
+                                    "rigidBody": {},
+                                    "rustable": {},
+                                    "scratchable": {},
+                                    "stainable": {},
+                                    "stickyable": {},
+                                    "tarnishable": {},
+                                    "wetable": {},
+                                    "wrinkleable": {}
+                                  }
                                 }
                               ],
                               "abilities": {

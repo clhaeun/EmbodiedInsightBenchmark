@@ -1,0 +1,322 @@
+# Mock LLM responses for SF Task: Cake Completion During Power Outage
+# Oracle (high-SF) sequence — revised pipeline with 3min steps, 20 max steps
+#
+# Phase 0: Observation (6 steps + DONE_OBSERVING = 7 responses)
+# SF Prediction 1: Initial scenario prediction (1 response)
+# Phase 2: Investigation (4 steps, no DONE = 4 responses)
+# SF Prediction 2: Extended prediction + 3 plans (1 response)
+# Phase 4: Mechanical execution (0 responses — system executes plans)
+# Total: 13 responses
+#
+# Investigation: OPEN → TOUCH cake → TOUCH oven_interior → CLOSE (4 steps, ts=4)
+#   Discovers V1 (cake 73% done) and V2 (oven rapid cooling -18°C/step vs -7 closed)
+#
+# Oracle plan (12 steps) scores 80/100:
+#   doneness ~77% (10) + cream (30) + chocolate (20) + time (20)
+#
+# Time system: 3 min/step, 20 steps = 60 min. Power restores at step 12.
+
+responses:
+  # ============================================================
+  # Phase 0: Observation (7 responses, no time consumed)
+  # ============================================================
+
+  # Response 1
+  - |
+    Thought: I need to assess the situation with the cake in the oven. Let me go check the oven first.
+    Action: NAVIGATE_TO[oven]
+
+  # Response 2
+  - |
+    Thought: I'm at the oven. The power is out, so it's no longer heating, but it might still retain heat. Let me check the surface temperature to estimate residual heat.
+    Action: TOUCH[oven_door]
+
+  # Response 3
+  - |
+    Thought: The oven surface is 172°C and cooling at -2.0°C per 3 minutes with the door closed. Significant residual heat remains. Now I need to check the fridge where the cream should be.
+    Action: NAVIGATE_TO[fridge]
+
+  # Response 4
+  - |
+    Thought: I'm at the fridge. The power is out, so it's warming. Let me check its temperature to assess how long the cream will stay cold.
+    Action: TOUCH[fridge_door]
+
+  # Response 5
+  - |
+    Thought: Fridge surface is 8°C, warming at +0.3°C per 3 minutes with door closed. The cream should still be cold for a while. Now let me check the countertop for decoration materials.
+    Action: NAVIGATE_TO[countertop]
+
+  # Response 6
+  - |
+    Thought: I see items on the countertop — likely chocolate and other supplies. Let me look closer to identify them.
+    Action: LOOK_CLOSER[countertop]
+
+  # Response 7 — DONE_OBSERVING
+  - |
+    Thought: I've gathered key temperature data. Oven is hot (172°C, cooling slowly), fridge is cold (8°C, warming slowly), countertop has chocolate and tools at room temperature (23°C). I have enough information to predict scenarios before taking any action.
+    Action: DONE_OBSERVING[]
+
+  # ============================================================
+  # SF Prediction 1: Initial Scenario Prediction (1 response)
+  # ============================================================
+
+  # Response 8
+  - |
+    === Part A: Variable Identification ===
+
+    VAR-1: Cake doneness
+      CURRENT KNOWLEDGE: Unknown — cake is inside closed oven, cannot see or touch it.
+      POSSIBLE VALUES: 30-90% done, depending on when power failed relative to baking start.
+      IMPACT: Determines whether cake needs more baking or can be removed immediately for cooling.
+      HOW TO DISCOVER: Open oven and touch the cake to check temperature and elasticity.
+
+    VAR-2: Oven cooling rate when opened
+      CURRENT KNOWLEDGE: Closed cooling rate is -2.0°C/3min (surface). Open rate is unknown but likely much faster due to direct air exposure.
+      POSSIBLE VALUES: Could be 2-5x faster than the closed rate.
+      IMPACT: Opening the oven to check the cake = losing residual heat. This creates a trade-off between information and heat preservation.
+      HOW TO DISCOVER: Open oven and measure interior temperature change over time.
+
+    VAR-3: Fridge warming rate when opened
+      CURRENT KNOWLEDGE: Closed warming rate is +0.3°C/3min (surface). Open rate unknown.
+      POSSIBLE VALUES: Could be 2-5x faster, similar physics as oven (insulation breach).
+      IMPACT: Opening fridge to get cream = cream warms faster. Timing of fridge opening is critical.
+      HOW TO DISCOVER: Open fridge and measure temperature, or extrapolate from oven behavior.
+
+    VAR-4: Power restoration timing
+      CURRENT KNOWLEDGE: Completely unknown. Power is currently out.
+      POSSIBLE VALUES: Could restore in 10min, 30min, or never within the task window.
+      IMPACT: If restored, oven can be reheated for additional baking. Changes entire strategy.
+      HOW TO DISCOVER: Wait and observe. Cannot actively discover.
+
+    VAR-5: Hot cake + cold cream interaction
+      CURRENT KNOWLEDGE: Cake is likely very hot (oven surface is 172°C). Cream is cold.
+      POSSIBLE VALUES: If cake is above ~50°C when cream is applied, cream melts on contact.
+      IMPACT: Must cool cake sufficiently before applying cream. Creates a timing constraint between cake extraction and cream application.
+      HOW TO DISCOVER: Check cake temperature after removal from oven.
+
+    VAR-6: Oven reheat time after power restore
+      CURRENT KNOWLEDGE: Unknown — depends on oven design and target temperature.
+      POSSIBLE VALUES: Probably 5-15 minutes to reach baking temperature.
+      IMPACT: Even if power restores, preheating takes time, limiting its usefulness late in the task.
+      HOW TO DISCOVER: Only discoverable after power actually restores.
+
+    === Part B: Scenario Generation ===
+
+    SC-1: "Residual heat bakes cake adequately"
+      VARIABLES INVOLVED: VAR-1, VAR-2
+      TRIGGER: Cake was already 60%+ done AND oven stays closed to preserve heat.
+      CONSEQUENCE: Cake reaches acceptable doneness passively. No need to worry about underbaking.
+      LIKELIHOOD: Medium
+
+    SC-2: "Opening oven kills residual baking"
+      VARIABLES INVOLVED: VAR-1, VAR-2
+      TRIGGER: Open cooling rate (VAR-2) is much faster than closed rate. Opening oven drops temp below baking threshold quickly.
+      CONSEQUENCE: Cake stops baking prematurely. Potential waste of residual heat.
+      LIKELIHOOD: High (if oven is opened early)
+
+    SC-3: "Cream window closes before cake cools"
+      VARIABLES INVOLVED: VAR-3, VAR-5
+      TRIGGER: Cream warms past its usable threshold before cake cools below 50°C.
+      CONSEQUENCE: Cannot apply cream at all. Must use only chocolate for decoration.
+      LIKELIHOOD: Medium-High
+
+    SC-4: "Fridge opening accelerates cream decay"
+      VARIABLES INVOLVED: VAR-2, VAR-3
+      TRIGGER: Fridge behaves like oven — faster temperature change when opened (extrapolation from VAR-2 to VAR-3).
+      CONSEQUENCE: Cream's usable window is much shorter than estimated from closed rate. Must grab cream immediately after opening fridge.
+      LIKELIHOOD: Medium (extrapolation — not yet confirmed)
+
+    SC-5: "Power restores but too late for oven reheat"
+      VARIABLES INVOLVED: VAR-4, VAR-6, VAR-2
+      TRIGGER: Power restores after oven has cooled significantly, requiring full preheat.
+      CONSEQUENCE: Preheat time (VAR-6) eats into remaining task time. May not have enough time for baking + cooling + decorating.
+      LIKELIHOOD: Low-Medium
+
+    SC-6: "Power restores AND residual heat preserved"
+      VARIABLES INVOLVED: VAR-4, VAR-2
+      TRIGGER: Power restores while oven is still warm AND oven was kept closed.
+      CONSEQUENCE: Can boost oven back to full temperature quickly. Best possible outcome for doneness.
+      LIKELIHOOD: Low (requires both luck and strategy)
+
+    SC-7: "Observation cost trap — checking everything wastes resources"
+      VARIABLES INVOLVED: VAR-2, VAR-3
+      TRIGGER: Opening BOTH oven and fridge during investigation to "confirm everything."
+      CONSEQUENCE: Lose residual oven heat AND accelerate cream decay simultaneously. Double penalty.
+      LIKELIHOOD: High (intuitive "check everything" approach is a trap)
+
+    SC-8: "Cream applied to hot cake — melts on contact"
+      VARIABLES INVOLVED: VAR-5, VAR-1
+      TRIGGER: Rushing to apply cream before it warms up, without waiting for cake to cool below 50°C.
+      CONSEQUENCE: Cream melts immediately. Wasted decoration effort.
+      LIKELIHOOD: Medium (timing pressure creates this trap)
+
+  # ============================================================
+  # Phase 2: Investigation (4 responses, irreversible)
+  # ts: 0 → 1 → 2 → 3 → 4
+  # Oven open for 3 steps (0-2), closed at step 3.
+  # V1 + V2 discovered.
+  # ============================================================
+
+  # Response 9 — OPEN oven
+  - |
+    Thought: My biggest uncertainty is the cake's state inside the oven. I need to open it to check, even though this will cause some heat loss. This is the most critical information for my plan.
+    Action: OPEN[oven_ffitak_0]
+
+  # Response 10 — TOUCH cake (V1 discovery)
+  - |
+    Thought: The oven is open. I can see the cake on a casserole dish. Let me check its temperature and doneness to determine if it needs more baking.
+    Action: TOUCH[cake]
+
+  # Response 11 — TOUCH oven_interior (V2 discovery!)
+  - |
+    Thought: The cake is at 93°C with elasticity 0.72 — it's mostly baked. Now I should check the oven interior temperature. It started at ~180°C internally, and I've had the door open for 2 steps. Comparing the actual interior temperature with the closed cooling rate will tell me how much faster heat escapes with the door open.
+    Action: TOUCH[oven_interior]
+
+  # Response 12 — CLOSE oven (preserve remaining heat)
+  - |
+    Thought: Critical discovery! The oven interior is at 144°C. Before opening, it should have been around 180-7*2=166°C based on the closed rate. But it's actually 144°C — a 22°C additional loss in 2 steps. The open rate is about -18°C/step compared to -7°C/step closed — roughly 2.5x faster! I should close the oven immediately to preserve the remaining heat for any additional baking.
+    Action: CLOSE[oven_ffitak_0]
+
+  # ============================================================
+  # SF Prediction 2: Extended Prediction + 3 Plans (1 response)
+  # Post-investigation: ts=4, oven CLOSED, 16 steps remaining
+  # ============================================================
+
+  # Response 13
+  - |
+    === Part A: Variable Updates ===
+
+    VAR-1: Cake doneness → CONFIRMED
+      New info: Internal temp 93°C, elasticity 0.72. Cake is ~73% done — mostly baked, structurally sound.
+
+    VAR-2: Oven cooling rate when opened → CONFIRMED
+      New info: Interior dropped to 144°C after 2 steps open. Expected ~166°C if closed. Open rate is ~-18°C/step vs -7°C/step closed = 2.5x faster cooling.
+
+    VAR-3: Fridge warming rate when opened → REVISED (extrapolated)
+      New info: No direct measurement, but extrapolating from VAR-2: if oven cools 2.5x faster when open, fridge likely warms ~2x faster when open. Closed rate ~1°C/step → open rate ~2°C/step.
+
+    VAR-4: Power restoration timing → STILL UNKNOWN
+      No new info. Must plan without it but be aware it could happen.
+
+    VAR-5: Hot cake + cream interaction → CONFIRMED
+      New info: Cake is at 93°C. After removal, cooling at ~9°C/step. Need ~5 steps to reach 50°C, ~8 steps to reach room temp. Cream must be applied after sufficient cooling.
+
+    VAR-6: Oven reheat time → STILL UNKNOWN
+      No new info. Only discoverable if power restores.
+
+    NEW VARIABLE:
+    VAR-7: Action step budget
+      The full cream+chocolate plan requires exactly 12 steps (with 4 NAVIGATE). With 16 steps remaining, there is a margin of 4 steps — enough for the full plan but no room for errors.
+
+    === Part B: Scenario Updates ===
+
+    SC-1: CONFIRM — Residual heat baked the cake to 73%. Strategy succeeded.
+
+    SC-2: CONFIRM — Oven interior dropped 22°C extra in 2 steps from opening. Rapid cooling is real and significant. Closing the oven after checking preserved remaining heat.
+
+    SC-3: REVISE — Now calculable. Cake needs ~5 steps to cool from 93°C to below 50°C. Fridge closed cream reaches ~20°C at step 15. Window exists if fridge is opened late and cream grabbed immediately.
+
+    SC-4: CONFIRM WITH NUMBERS — Extrapolated from oven: fridge open rate ~2°C/step vs 1°C/step closed. Opening fridge adds ~1°C/step extra warming. Must open fridge at the latest possible moment.
+
+    SC-5: CONFIRM — Power restoration could help, but even if it happens, oven needs 3 steps to preheat. Only useful if power restores early enough.
+
+    SC-6: REVISE — Oven was opened during investigation (heat lost), so even if power restores, oven needs full preheat. Less advantageous than originally predicted.
+
+    SC-7: CONFIRM — This is a real trap. I opened only the oven (not the fridge) during investigation. If I had opened both, the cream window would have shrunk dramatically.
+
+    SC-8: CONFIRM — Cake at 93°C. Applying cream immediately after removal = guaranteed melt failure.
+
+    NEW SCENARIOS:
+    SC-9: "Tight cream window — open fridge too early and cream melts"
+      VARIABLES: VAR-3, VAR-7
+      TRIGGER: Opening fridge more than 1-2 steps before cream application.
+      CONSEQUENCE: Each extra step with fridge open adds ~1°C. With threshold at 20°C and base rising, even 1 wasted step can push cream over threshold.
+
+    SC-10: "Power restores mid-plan — oven reheat opportunity"
+      VARIABLES: VAR-4, VAR-6
+      TRIGGER: Power restores around step 12 (36 min mark) and plan includes TURN_ON_OVEN.
+      CONSEQUENCE: Could boost doneness from 73% toward 90%+ if cake is put back in oven. But conflicts with cream timing.
+
+    === Part C: Execution Plans (5 plans) ===
+
+    Plan A: Chocolate only — safe, guaranteed decoration
+      Addresses scenarios: SC-1 (cake baked), SC-2 (heat loss accepted), SC-7 (avoid fridge trap)
+      Step 1: NAVIGATE_TO[oven_ffitak_0]
+      Step 2: OPEN[oven_ffitak_0]
+      Step 3: GRASP[casserole_700]
+      Step 4: NAVIGATE_TO[countertop_kelzer_0]
+      Step 5: PLACE_ON_TOP[countertop_kelzer_0]
+      Step 6: NEW_ACTION[PREPARE_DECORATION, chocolate_bar_703, decoration]
+      Step 7: NEW_ACTION[APPLY_CHOCOLATE, chocolate_bar_703, chocolate_cake_701]
+      Expected outcome: Cake removed and decorated with chocolate only.
+      Expected score: 20 (doneness) + 0 (no cream) + 20 (chocolate) + 20 (time) = 60
+      Key risk: Low risk. Misses cream decoration.
+
+    Plan B: Cream only — late fridge opening
+      Addresses scenarios: SC-3 (cream window), SC-4 (fridge rapid warming), SC-8 (cool cake first), SC-9 (tight window)
+      Step 1: NAVIGATE_TO[oven_ffitak_0]
+      Step 2: OPEN[oven_ffitak_0]
+      Step 3: GRASP[casserole_700]
+      Step 4: NAVIGATE_TO[countertop_kelzer_0]
+      Step 5: PLACE_ON_TOP[countertop_kelzer_0]
+      Step 6: NAVIGATE_TO[fridge_dszchb_0]
+      Step 7: OPEN[fridge_dszchb_0]
+      Step 8: GRASP[cream_carton_702]
+      Step 9: NAVIGATE_TO[countertop_kelzer_0]
+      Step 10: WAIT[]
+      Step 11: NEW_ACTION[APPLY_CREAM, cream_carton_702, chocolate_cake_701]
+      Expected outcome: Cream applied after cooling. No chocolate.
+      Expected score: 20 (doneness) + 30 (cream) + 0 (no chocolate) + 20 (time) = 70
+      Key risk: SC-9 — cream margin tight.
+
+    Plan C: Full decoration — cream + chocolate, optimal timing (Oracle)
+      Addresses scenarios: SC-1, SC-3, SC-4, SC-7, SC-8, SC-9 (all major scenarios)
+      Step 1: NAVIGATE_TO[oven_ffitak_0]
+      Step 2: OPEN[oven_ffitak_0]
+      Step 3: GRASP[casserole_700]
+      Step 4: NAVIGATE_TO[countertop_kelzer_0]
+      Step 5: PLACE_ON_TOP[countertop_kelzer_0]
+      Step 6: NEW_ACTION[PREPARE_DECORATION, chocolate_bar_703, decoration]
+      Step 7: NAVIGATE_TO[fridge_dszchb_0]
+      Step 8: OPEN[fridge_dszchb_0]
+      Step 9: GRASP[cream_carton_702]
+      Step 10: NAVIGATE_TO[countertop_kelzer_0]
+      Step 11: NEW_ACTION[APPLY_CREAM, cream_carton_702, chocolate_cake_701]
+      Step 12: NEW_ACTION[APPLY_CHOCOLATE, chocolate_bar_703, chocolate_cake_701]
+      Expected outcome: Both cream and chocolate applied. Cream ~19°C, cake ~23°C.
+      Expected score: 20 (doneness) + 30 (cream) + 20 (chocolate) + 20 (time) = 90
+      Key risk: SC-9 — cream margin ~3°C.
+
+    Plan D: Power restore gamble — oven reheat + full decoration
+      Addresses scenarios: SC-5 (power restore), SC-6 (oven reheat), SC-10 (power mid-plan)
+      Step 1: CLOSE[oven_ffitak_0]
+      Step 2: WAIT[]
+      Step 3: WAIT[]
+      Step 4: WAIT[]
+      Step 5: WAIT[]
+      Step 6: NEW_ACTION[TURN_ON_OVEN, oven_ffitak_0, 180]
+      Step 7: WAIT[]
+      Step 8: WAIT[]
+      Step 9: WAIT[]
+      Step 10: OPEN[oven_ffitak_0]
+      Step 11: GRASP[casserole_700]
+      Step 12: NAVIGATE_TO[countertop_kelzer_0]
+      Step 13: PLACE_ON_TOP[countertop_kelzer_0]
+      Step 14: NEW_ACTION[PREPARE_DECORATION, chocolate_bar_703, decoration]
+      Step 15: NEW_ACTION[APPLY_CHOCOLATE, chocolate_bar_703, chocolate_cake_701]
+      Expected outcome: If power restores at step 12, oven reheats. Cake gets more baking. Chocolate decoration only (no time for cream).
+      Expected score: 30 (doneness 90%+) + 0 + 20 + 20 = 70 (if power restores) or 20 + 0 + 20 + 20 = 60 (if not)
+      Key risk: Power may not restore. TURN_ON_OVEN fails without power.
+
+    Plan E: No decoration — maximum cooling
+      Addresses scenarios: All failure scenarios — safest fallback
+      Step 1: NAVIGATE_TO[oven_ffitak_0]
+      Step 2: OPEN[oven_ffitak_0]
+      Step 3: GRASP[casserole_700]
+      Step 4: NAVIGATE_TO[countertop_kelzer_0]
+      Step 5: PLACE_ON_TOP[countertop_kelzer_0]
+      Expected outcome: Cake removed and cooled. No decoration attempted.
+      Expected score: 20 (doneness) + 0 + 0 + 20 = 40
+      Key risk: Fails decoration requirement entirely.
+
+    RANKING: C > B > A > D > E

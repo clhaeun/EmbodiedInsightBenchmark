@@ -1,0 +1,25 @@
+(define (problem tilt_and_turn_window-0)
+    (:domain omnigibson)
+
+    (:objects
+        window.n.01_1 - window.n.01
+        coffee_table.n.01_1 - coffee_table.n.01
+        pot_plant.n.01_1 - pot_plant.n.01
+        vase.n.01_1 - vase.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        (ontop window.n.01_1 floor.n.01_1)
+        (ontop coffee_table.n.01_1 floor.n.01_1)
+        (ontop pot_plant.n.01_1 coffee_table.n.01_1)
+        (ontop vase.n.01_1 coffee_table.n.01_1)
+        (inroom window.n.01_1 bedroom)
+        (inroom coffee_table.n.01_1 bedroom)
+        (inroom floor.n.01_1 bedroom)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal (open window.n.01_1))
+)

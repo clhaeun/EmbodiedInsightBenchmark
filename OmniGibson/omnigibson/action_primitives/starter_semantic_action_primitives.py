@@ -30,6 +30,7 @@ from omnigibson.controllers import (
     InverseKinematicsController,
     HolonomicBaseJointController,
     DifferentialDriveController,
+    JointController,
 )
 from omnigibson.macros import create_module_macros
 from omnigibson.macros import macros
@@ -47,6 +48,7 @@ from omnigibson.robots import (
     Tiago,
     Turtlebot,
 )
+from omnigibson.robots.active_camera_robot import ActiveCameraRobot
 from omnigibson.robots.manipulation_robot import ManipulationRobot
 from omnigibson.robots.holonomic_base_robot import HolonomicBaseRobot
 from omnigibson.tasks.behavior_task import BehaviorTask
@@ -85,7 +87,7 @@ m.KP_ANGLE_VEL = {
     R1Pro: 0.2,
 }
 
-m.DEFAULT_COLLISION_ACTIVATION_DISTANCE = 0.02
+m.DEFAULT_COLLISION_ACTIVATION_DISTANCE = 0.005
 m.MAX_PLANNING_ATTEMPTS = 100
 m.MAX_IK_FAILURES_BEFORE_RETURN = 50
 
@@ -128,7 +130,18 @@ log = create_module_logger(module_name=__name__)
 
 
 def indented_print(msg, *args, **kwargs):
-    print("  " * len(inspect.stack()) + str(msg), *args, **kwargs)
+    formatted = "  " * len(inspect.stack()) + str(msg)
+    # Write to the diag log file if one is set (skip terminal output)
+    _diag_log = getattr(indented_print, "_diag_log_file", None)
+    if _diag_log is not None:
+        try:
+            _diag_log.write(formatted + "\n")
+            _diag_log.flush()
+        except Exception:
+            pass
+    else:
+        # Fallback to terminal only when no log file is configured
+        print(formatted, *args, **kwargs)
 
 
 class StarterSemanticActionPrimitiveSet(IntEnum):
@@ -241,6 +254,62 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
     def arm(self):
         assert isinstance(self.robot, ManipulationRobot), "Cannot use arm for non-manipulation robot"
         return self.robot.default_arm
+
+    @property
+    def _is_holonomic(self):
+        """Whether the robot uses a holonomic base (e.g. Tiago, R1) vs differential drive (e.g. Fetch)."""
+        return isinstance(self.robot, HolonomicBaseRobot)
+
+    @property
+    def _has_camera(self):
+        """Whether the robot has controllable camera/head joints."""
+        return isinstance(self.robot, ActiveCameraRobot)
+
+    @property
+    def _has_curobo(self):
+        """Whether the CuRobo motion generator is available."""
+        return self._motion_generator is not None
+
+    def _robot_q_to_action(self, q):
+        """
+        Converts target joint positions to an action tensor.
+        For holonomic robots, delegates to robot.q_to_action().
+        For non-holonomic robots, builds the action by setting each controller's
+        target from the joint positions (base controller gets a no-op).
+
+        Args:
+            q (th.tensor): Target joint positions (full joint state)
+
+        Returns:
+            th.tensor: Action tensor
+        """
+        if self._is_holonomic:
+            return self.robot.q_to_action(q)
+
+        # For non-holonomic robots, build action controller-by-controller
+        action = th.zeros(self.robot.action_dim)
+        for name, controller in self.robot._controllers.items():
+            action_idx = self.robot.controller_action_idx[name]
+            if isinstance(controller, DifferentialDriveController):
+                # Base gets zero velocity (no-op)
+                action[action_idx] = 0.0
+            elif isinstance(controller, InverseKinematicsController):
+                # IK controller: compute relative target from current pose
+                arm = name.replace("arm_", "")
+                target_joint_pos = q[controller.dof_idx]
+                # For IK we just send a no-op (zero delta) since we can't directly
+                # map joint positions to IK commands without FK
+                action[action_idx] = controller.compute_no_op_action(self.robot.get_control_dict())
+            else:
+                # JointController: use target joint positions
+                target = q[controller.dof_idx]
+                if controller.use_delta_commands:
+                    current = self.robot.get_joint_positions()[controller.dof_idx]
+                    command = target - current
+                else:
+                    command = target
+                action[action_idx] = controller._reverse_preprocess_command(command)
+        return action
 
     def _postprocess_action(self, action):
         """Postprocesses action by applying head tracking."""
@@ -359,6 +428,13 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         yield from self._open_or_close(obj, False)
 
     def _open_or_close(self, obj, should_open):
+        # --- DIAG: Log openable state before raising ---
+        action_str = "OPEN" if should_open else "CLOSE"
+        if hasattr(obj, 'states') and object_states.Open in obj.states:
+            is_open = obj.states[object_states.Open].get_value()
+            indented_print(f"[DIAG] {action_str} target={obj.name}, is_openable=True, currently_open={is_open}")
+        else:
+            indented_print(f"[DIAG] {action_str} target={obj.name}, is_openable=False (no Open state)")
         raise NotImplementedError("Open/close is not implemented correctly yet.")
 
         # Update the tracking to track the eef.
@@ -659,6 +735,29 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         Returns:
             th.tensor or None: Action array for one step for the robot to place or None if place completed
         """
+        # --- DIAG: Check if target object is openable and its current state ---
+        held = self._get_obj_in_hand()
+        indented_print(f"[DIAG] PLACE_INSIDE target={obj.name}, held={held.name if held else None}")
+        if hasattr(obj, 'states') and object_states.Open in obj.states:
+            is_open = obj.states[object_states.Open].get_value()
+            indented_print(f"[DIAG]   target is OPENABLE, currently open={is_open}")
+        else:
+            indented_print(f"[DIAG]   target is NOT openable (no Open state)")
+
+        # --- DIAG: Compare AABB sizes ---
+        try:
+            target_aabb = obj.aabb_extent
+            indented_print(f"[DIAG]   target AABB extent: [{target_aabb[0]:.3f}, {target_aabb[1]:.3f}, {target_aabb[2]:.3f}]")
+            if held is not None:
+                held_aabb = held.aabb_extent
+                indented_print(f"[DIAG]   held   AABB extent: [{held_aabb[0]:.3f}, {held_aabb[1]:.3f}, {held_aabb[2]:.3f}]")
+                fits_x = float(held_aabb[0]) < float(target_aabb[0])
+                fits_y = float(held_aabb[1]) < float(target_aabb[1])
+                fits_z = float(held_aabb[2]) < float(target_aabb[2])
+                indented_print(f"[DIAG]   held fits inside target? x={fits_x}, y={fits_y}, z={fits_z}")
+        except Exception as e:
+            indented_print(f"[DIAG]   AABB comparison error: {e}")
+
         yield from self._place_with_predicate(obj, object_states.Inside)
 
     def _toggle_on(self, obj):
@@ -721,7 +820,8 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 "You need to be grasping an object first to place it somewhere.",
             )
 
-        self._motion_generator.update_obstacles()
+        if self._has_curobo:
+            self._motion_generator.update_obstacles()
         target_in_reach = False
         valid_navigation_pose = None
         for _ in range(m.MAX_ATTEMPTS_FOR_SAMPLING_PLACE_POSE):
@@ -729,13 +829,18 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             obj_pose = self._sample_pose_with_object_and_predicate(predicate, obj_in_hand, obj, world_aligned=True)
             hand_pose = self._get_hand_pose_for_object_pose(obj_pose)
 
-            # First check if we can directly move the hand there
-            # We want to plan with the fingers at their upper (open) limits to avoid collisions
-            # because later we will open-loop open the gripper with _execute_release after placing.
-            initial_joint_pos = self._get_joint_position_with_fingers_at_limit("upper")
-            target_in_reach = self._target_in_reach_of_robot(
-                hand_pose, initial_joint_pos=initial_joint_pos, skip_obstacle_update=True
-            )
+            if self._has_curobo:
+                # First check if we can directly move the hand there
+                # We want to plan with the fingers at their upper (open) limits to avoid collisions
+                # because later we will open-loop open the gripper with _execute_release after placing.
+                initial_joint_pos = self._get_joint_position_with_fingers_at_limit("upper")
+                target_in_reach = self._target_in_reach_of_robot(
+                    hand_pose, initial_joint_pos=initial_joint_pos, skip_obstacle_update=True
+                )
+            else:
+                # Without CuRobo, try to move the hand directly and let the fallback handle it
+                target_in_reach = True
+
             if target_in_reach:
                 yield from self._move_hand(hand_pose)
                 break
@@ -901,6 +1006,26 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             self.debug_visual_marker.set_position_orientation(*target_pose)
 
         yield from self._settle_robot()
+
+        # Fallback for robots without CuRobo: use direct IK or linear cartesian movement
+        if not self._has_curobo:
+            indented_print("CuRobo unavailable, using direct movement fallback")
+            controller_config = self.robot._controller_config.get(f"arm_{self.arm}", {})
+            if controller_config.get("name") == "InverseKinematicsController":
+                # IK controller: use direct IK movement
+                yield from self._move_hand_direct_ik(target_pose, stop_on_contact=stop_on_contact)
+            else:
+                # JointController without CuRobo: use _move_hand_direct_joint with reset pose
+                # as CuRobo IK solver is not available for cartesian-to-joint conversion.
+                # Fall back to _move_hand_linearly_cartesian only if the controller path supports it
+                # (i.e. IK controller path within _move_hand_linearly_cartesian).
+                raise ActionPrimitiveError(
+                    ActionPrimitiveError.Reason.PLANNING_ERROR,
+                    "Cannot plan hand motion without CuRobo for JointController. "
+                    "Use InverseKinematicsController for the arm or provide CuRobo config files.",
+                )
+            return
+
         # curobo motion generator takes a pose but outputs joint positions
         if not lock_auxiliary_arm:
             target_pos = {
@@ -980,8 +1105,15 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         # Grab the first successful trajectory if found
         success_idx = th.where(successes)[0].cpu()
         if len(success_idx) == 0:
-            # print("motion planning fails")
-            # breakpoint()
+            # Log current and target positions for diagnosis
+            current_base = self.robot.get_joint_positions()[self.robot.base_control_idx].tolist()
+            target_info = {k: v[0].tolist() for k, v in target_pos.items()}
+            indented_print(
+                f"[DIAG] _plan_joint_motion FAILED: {successes.shape[0]} trajectories attempted, "
+                f"0 succeeded. embodiment={embodiment_selection}, "
+                f"current_base={[round(x, 3) for x in current_base]}, "
+                f"target_pos={target_info}"
+            )
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PLANNING_ERROR,
                 "There is no accessible path from where you are to the desired pose. Try again",
@@ -1022,17 +1154,19 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 for arm in self.robot.arm_names:
                     articulation_control_idx.append(self.robot.arm_control_idx[arm])
                 articulation_control_idx = th.cat(articulation_control_idx)
-                for j in range(m.MAX_STEPS_FOR_JOINT_MOTION):
-                    # indented_print(f"Step {j + 1}/{m.MAX_STEPS_FOR_JOINT_MOTION}")
 
-                    # We need to call @q_to_action for every step because as the robot base moves, the same base joint_pos will be
+                # For non-holonomic robots, base is not controlled via joint positions,
+                # so we skip the base convergence check and only track articulation joints.
+                check_base = self._is_holonomic
+
+                for j in range(m.MAX_STEPS_FOR_JOINT_MOTION):
+                    # We need to call q_to_action for every step because as the robot base moves, the same base joint_pos will be
                     # converted to different actions, since HolonomicBaseJointController accepts an action in the robot local frame.
-                    action = self.robot.q_to_action(joint_pos)
+                    action = self._robot_q_to_action(joint_pos)
                     yield self._postprocess_action(action)
 
                     current_joint_pos = self.robot.get_joint_positions()
                     joint_pos_diff = joint_pos - current_joint_pos
-                    base_joint_diff = joint_pos_diff[self.robot.base_control_idx]
                     articulation_joint_diff = joint_pos_diff[articulation_control_idx]  # Gets all non-base joints
                     articulation_threshold = (
                         m.JOINT_POS_DIFF_THRESHOLD if not low_precision else m.LOW_PRECISION_JOINT_POS_DIFF_THRESHOLD
@@ -1041,9 +1175,14 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     if max_articulation_joint_diff < articulation_threshold:
                         articulation_target_reached = True
 
-                    max_base_pos_diff = th.max(th.abs(base_joint_diff[:2])).item()
-                    max_base_orn_diff = th.abs(wrap_angle(base_joint_diff[2]))
-                    if max_base_pos_diff < m.DEFAULT_DIST_THRESHOLD and max_base_orn_diff < m.DEFAULT_ANGLE_THRESHOLD:
+                    if check_base:
+                        base_joint_diff = joint_pos_diff[self.robot.base_control_idx]
+                        max_base_pos_diff = th.max(th.abs(base_joint_diff[:2])).item()
+                        max_base_orn_diff = th.abs(wrap_angle(base_joint_diff[2]))
+                        if max_base_pos_diff < m.DEFAULT_DIST_THRESHOLD and max_base_orn_diff < m.DEFAULT_ANGLE_THRESHOLD:
+                            base_target_reached = True
+                    else:
+                        # Non-holonomic: base is not tracked via joint positions
                         base_target_reached = True
 
                     # Early stopping if the base, trunk and arm joints are at the target positions
@@ -1061,14 +1200,12 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     if not base_target_reached:
                         indented_print(f"max base pos diff: {max_base_pos_diff}")
                         indented_print(f"max base angle diff: {max_base_orn_diff}")
-                        # breakpoint()
                         raise ActionPrimitiveError(
                             ActionPrimitiveError.Reason.EXECUTION_ERROR,
                             "Could not reach the target base joint positions. Try again",
                         )
                     if not articulation_target_reached:
                         indented_print(f"max articulation joint diff: {max_articulation_joint_diff}")
-                        # breakpoint()
                         raise ActionPrimitiveError(
                             ActionPrimitiveError.Reason.EXECUTION_ERROR,
                             "Could not reach the target articulation joint positions. Try again",
@@ -1344,7 +1481,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             th.tensor or None: Action array for one step for the robot to move fingers or None if done.
         """
         target_joint_positions = self._get_joint_position_with_fingers_at_limit(limit_type)
-        action = self.robot.q_to_action(target_joint_positions)
+        action = self._robot_q_to_action(target_joint_positions)
         for _ in range(m.MAX_STEPS_FOR_GRASP_OR_RELEASE):
             yield self._postprocess_action(action)
             current_joint_positions = self.robot.get_joint_positions()
@@ -1388,6 +1525,10 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         Args:
             action (array) : action array to overwrite
         """
+        # Skip head tracking for robots without a controllable camera (e.g. R1)
+        if not self._has_camera:
+            return action
+
         if self._always_track_eef:
             target_obj_pose = (self.robot.get_eef_position(self.arm), self.robot.get_eef_orientation(self.arm))
         else:
@@ -1398,8 +1539,6 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 target_obj_pose = (self.robot.get_eef_position(self.arm), self.robot.get_eef_orientation(self.arm))
             else:
                 target_obj_pose = self._tracking_object.get_position_orientation()
-
-        assert isinstance(self.robot, Tiago), "Tracking object with camera is currently only supported for Tiago"
 
         head_q = self._get_head_goal_q(target_obj_pose)
         head_idx = self.robot.controller_action_idx["camera"]
@@ -1421,43 +1560,49 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         """
         Get goal joint positions for head to look at an object of interest,
         If the object cannot be seen, return the reset (default) head joint positions.
+        Works generically with any robot that has 2-DOF camera joints (pan + tilt).
         """
-
-        # get current head joint positions
-        head1_joint = self.robot.joints["head_1_joint"]
-        head2_joint = self.robot.joints["head_2_joint"]
-        head1_joint_limits = [head1_joint.lower_limit, head1_joint.upper_limit]
-        head2_joint_limits = [head2_joint.lower_limit, head2_joint.upper_limit]
-        head1_joint_goal = head1_joint.get_state()[0][0]
-        head2_joint_goal = head2_joint.get_state()[0][0]
+        # Use generic camera joint names (e.g. Tiago: head_1/2_joint, Fetch: head_pan/tilt_joint)
+        cam_joint_names = self.robot.camera_joint_names
+        pan_joint = self.robot.joints[cam_joint_names[0]]
+        tilt_joint = self.robot.joints[cam_joint_names[1]]
+        pan_limits = [pan_joint.lower_limit, pan_joint.upper_limit]
+        tilt_limits = [tilt_joint.lower_limit, tilt_joint.upper_limit]
+        pan_goal = pan_joint.get_state()[0][0]
+        tilt_goal = tilt_joint.get_state()[0][0]
 
         # grab robot and object poses
         robot_pose = self.robot.get_position_orientation()
-        # obj_pose = obj.get_position_orientation()
         obj_in_base = T.relative_pose_transform(*target_obj_pose, *robot_pose)
 
         # compute angle between base and object in xy plane (parallel to floor)
         theta = th.arctan2(obj_in_base[0][1], obj_in_base[0][0])
 
         # if it is possible to get object in view, compute both head joint positions
-        if head1_joint_limits[0] < theta < head1_joint_limits[1]:
-            head1_joint_goal = theta
+        if pan_limits[0] < theta < pan_limits[1]:
+            pan_goal = theta
 
             # compute angle between base and object in xz plane (perpendicular to floor)
-            head2_pose = self.robot.links["head_2_link"].get_position_orientation()
-            head2_in_base = T.relative_pose_transform(*head2_pose, *robot_pose)
+            # Find the tilt link for elevation reference: derive link name from joint name
+            tilt_link_name = cam_joint_names[1].replace("_joint", "_link")
+            if tilt_link_name in self.robot.links:
+                tilt_link_pose = self.robot.links[tilt_link_name].get_position_orientation()
+            else:
+                # Fallback: use the robot base position as reference
+                tilt_link_pose = robot_pose
+            tilt_in_base = T.relative_pose_transform(*tilt_link_pose, *robot_pose)
 
-            phi = th.arctan2(obj_in_base[0][2] - head2_in_base[0][2], obj_in_base[0][0])
-            if head2_joint_limits[0] < phi < head2_joint_limits[1]:
-                head2_joint_goal = phi
+            phi = th.arctan2(obj_in_base[0][2] - tilt_in_base[0][2], obj_in_base[0][0])
+            if tilt_limits[0] < phi < tilt_limits[1]:
+                tilt_goal = phi
 
         # if not possible to look at object, return the reset (default) head joint positions
         else:
             default_head_pos = self.robot.reset_joint_pos[self.robot.controller_action_idx["camera"]]
-            head1_joint_goal = default_head_pos[0]
-            head2_joint_goal = default_head_pos[1]
+            pan_goal = default_head_pos[0]
+            tilt_goal = default_head_pos[1]
 
-        return th.tensor([head1_joint_goal, head2_joint_goal])
+        return th.tensor([pan_goal, tilt_goal])
 
     def _empty_action(self, follow_arm_targets=True):
         """
@@ -1512,6 +1657,12 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             th.tensor or None: Action array for one step for the robot to reset its hands or None if it is done resetting
         """
         indented_print("Resetting robot")
+
+        # Fallback for robots without CuRobo: use _reset_hand for the default arm
+        if not self._has_curobo:
+            yield from self._reset_hand()
+            return
+
         target_pos = dict()
         target_quat = dict()
         for arm in self.robot.arm_names:
@@ -1569,14 +1720,18 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         Returns:
             th.tensor or None: Action array for one step for the robot to navigate or None if it is done navigating
         """
+        # For non-holonomic robots (e.g. Fetch), use direct velocity-based navigation
+        # since CuRobo BASE planning requires holonomic base joints
+        if not self._is_holonomic or not self._has_curobo:
+            yield from self._navigate_to_pose_direct(pose_2d)
+            return
+
         pose_3d = self._get_robot_pose_from_2d_pose(pose_2d)
         if self.debug_visual_marker is not None:
             self.debug_visual_marker.set_position_orientation(*pose_3d)
         target_pos = {self.robot.base_footprint_link_name: pose_3d[0]}
         target_quat = {self.robot.base_footprint_link_name: pose_3d[1]}
 
-        # print("base motion planning")
-        # breakpoint()
         q_traj = self._plan_joint_motion(
             target_pos,
             target_quat,
@@ -1621,16 +1776,18 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         Returns:
             th.tensor or None: Action array for one step for the robot to navigate or None if it is done navigating
         """
-        self._motion_generator.update_obstacles()
-
         if eef_pose is None:
             eef_pose, _ = self._sample_grasp_pose(obj)
 
-        if self._target_in_reach_of_robot(eef_pose, skip_obstacle_update=True):
-            # No need to navigate.
-            return
-
-        yield from self._navigate_to_obj(obj, eef_pose=eef_pose, skip_obstacle_update=True)
+        if self._has_curobo:
+            self._motion_generator.update_obstacles()
+            if self._target_in_reach_of_robot(eef_pose, skip_obstacle_update=True):
+                # No need to navigate.
+                return
+            yield from self._navigate_to_obj(obj, eef_pose=eef_pose, skip_obstacle_update=True)
+        else:
+            # Without CuRobo, always navigate to the object
+            yield from self._navigate_to_obj(obj, eef_pose=eef_pose)
 
     def _navigate_to_obj(self, obj, eef_pose=None, skip_obstacle_update=False):
         """
@@ -1645,6 +1802,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         """
         pose = self._sample_pose_near_object(obj, eef_pose=eef_pose, skip_obstacle_update=skip_obstacle_update)
         if pose is None:
+            indented_print(f"[DIAG] _navigate_to_obj: No valid pose found near '{obj.name}' at pos={obj.get_position().tolist()}")
             raise ActionPrimitiveError(
                 ActionPrimitiveError.Reason.PLANNING_ERROR,
                 "Could not find a valid pose near the object",
@@ -1796,12 +1954,18 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
         )
 
         attempt = 0
-        if not skip_obstacle_update:
+        total_collision_fails = 0
+        total_reach_fails = 0
+        total_room_fails = 0
+        total_candidates = 0
+        if not skip_obstacle_update and self._has_curobo:
             # Update obstacle once before sampling
             self._motion_generator.update_obstacles()
         while attempt < sampling_attempts:
             candidate_poses = []
+            batch_room_fails = 0
             for _ in range(self._curobo_batch_size):
+                found_room = False
                 for _ in range(m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_FOR_CORRECT_ROOM):
                     distance = (th.rand(1) * (distance_hi - distance_lo) + distance_lo).item()
                     yaw = th.rand(1) * (yaw_hi - yaw_lo) + yaw_lo
@@ -1815,18 +1979,25 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
                     # Check room
                     if self.robot.scene._seg_map.get_room_instance_by_point(candidate_2d_pose[:2]) in obj_rooms:
+                        found_room = True
                         break
+                if not found_room:
+                    batch_room_fails += 1
                 candidate_poses.append(candidate_2d_pose)
+
+            total_room_fails += batch_room_fails
 
             # Normally candidate_poses will have length equal to self._curobo_batch_size
             # In case we are unable to find a valid pose in the room, we will have less than self._curobo_batch_size.
             # We skip the following steps if the list is empty.
             if len(candidate_poses) > 0:
+                total_candidates += len(candidate_poses)
                 result = self._validate_poses(
                     candidate_poses,
                     eef_pose=target_pose,
                     plan_with_open_gripper=plan_with_open_gripper,
                     skip_obstacle_update=True,
+                    _diag_counters={"collision_fails": 0, "reach_fails": 0},
                 )
 
                 # If anything in result is true, return the pose
@@ -1836,6 +2007,12 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                         return candidate_poses[i]
 
             attempt += self._curobo_batch_size
+
+        indented_print(
+            f"[DIAG] _sample_pose_near_object FAILED after {total_candidates} candidates: "
+            f"room_fails={total_room_fails}, "
+            f"collision_activation_distance={m.DEFAULT_COLLISION_ACTIVATION_DISTANCE}"
+        )
         return None
 
     @staticmethod
@@ -1909,8 +2086,9 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                 - 4-array: (x,y,z,w) Quaternion orientation in the world frame
         """
         pred_map = {object_states.OnTop: "onTop", object_states.Inside: "inside"}
+        _sample_fail_count = 0
 
-        for _ in range(m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE):
+        for _attempt_i in range(m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE):
             if world_aligned:
                 # Take the bbox in the world frame because we want to keep the x-y component of the current orientation
                 bb_extents = held_obj.aabb_extent
@@ -1925,6 +2103,7 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
 
             sampling_results = sample_cuboid_for_predicate(pred_map[predicate], target_obj, bb_extents)
             if sampling_results[0][0] is None:
+                _sample_fail_count += 1
                 continue
             sampled_bb_center = sampling_results[0][0] + th.tensor([0, 0, m.PREDICATE_SAMPLING_Z_OFFSET])
             sampled_bb_orn = sampling_results[0][2]
@@ -1945,13 +2124,17 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             return T.mat2pose(sampled_obj_pose)
 
         # If we get here, sampling failed.
+        total_attempts = m.MAX_ATTEMPTS_FOR_SAMPLING_POSE_WITH_OBJECT_AND_PREDICATE
+        indented_print(f"[DIAG] _sample_pose_with_object_and_predicate FAILED: "
+                       f"{_sample_fail_count}/{total_attempts} ray-cast sampling returned None, "
+                       f"relation={pred_map[predicate]}, target={target_obj.name}, held={held_obj.name}")
         raise ActionPrimitiveError(
             ActionPrimitiveError.Reason.SAMPLING_ERROR,
             "Could not find a position to put this object in the desired relation to the target object",
             {"target object": target_obj.name, "object in hand": held_obj.name, "relation": pred_map[predicate]},
         )
 
-    def _validate_poses(self, candidate_poses, eef_pose=None, plan_with_open_gripper=False, skip_obstacle_update=False):
+    def _validate_poses(self, candidate_poses, eef_pose=None, plan_with_open_gripper=False, skip_obstacle_update=False, _diag_counters=None):
         """
         Determines whether the robot can reach all poses on the objects and is not in collision at the specified 2d poses
 
@@ -1966,6 +2149,15 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             list of bool: Whether the default arm can reach all poses on the objects and is not in collision
                 at the specified 2d poses
         """
+        # For non-holonomic robots or without CuRobo, we cannot validate base poses via joint-space
+        # collision checking. Accept all candidates and rely on the actual navigation + arm planning to fail gracefully.
+        if not self._is_holonomic or not self._has_curobo:
+            indented_print(
+                f"[DIAG] _validate_poses: skipping CuRobo validation for non-holonomic/no-CuRobo robot, "
+                f"accepting all {len(candidate_poses)} candidates"
+            )
+            return th.ones(len(candidate_poses), dtype=th.bool)
+
         # First check collisions for all candidate poses
         candidate_joint_positions = []
         if plan_with_open_gripper:
@@ -1992,7 +2184,19 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             attached_obj=attached_obj,
         ).cpu()
 
+        # Diagnostic: count collision failures
+        collision_fail_count = invalid_results.sum().item()
+        if _diag_counters is not None:
+            _diag_counters["collision_fails"] += int(collision_fail_count)
+
+        passed_collision = int((~invalid_results).sum().item())
+        indented_print(
+            f"[DIAG] _validate_poses: {len(candidate_poses)} candidates, "
+            f"{collision_fail_count} collision_fails, {passed_collision} passed_collision"
+        )
+
         # For each candidate that passed collision check, verify reachability
+        reach_fail_count = 0
         for i in range(len(candidate_poses)):
             if invalid_results[i].item():
                 continue
@@ -2005,6 +2209,12 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
                     eef_pose, initial_joint_pos=candidate_joint_position, skip_obstacle_update=skip_obstacle_update
                 ):
                     invalid_results[i] = True
+                    reach_fail_count += 1
+
+        if _diag_counters is not None:
+            _diag_counters["reach_fails"] += reach_fail_count
+        if reach_fail_count > 0:
+            indented_print(f"[DIAG] _validate_poses: {reach_fail_count} reach_fails (passed collision but arm can't reach)")
 
         return ~invalid_results
 
@@ -2098,11 +2308,11 @@ class StarterSemanticActionPrimitives(BaseActionPrimitiveSet):
             th.tensor or None: Action array for one step for the robot to do nothing
         """
         for _ in range(50):
-            empty_action = self.robot.q_to_action(self.robot.get_joint_positions())
+            empty_action = self._robot_q_to_action(self.robot.get_joint_positions())
             yield self._postprocess_action(empty_action)
 
         for _ in range(m.MAX_STEPS_FOR_SETTLING):
             if th.norm(self.robot.get_linear_velocity()) < 0.01:
                 break
-            empty_action = self.robot.q_to_action(self.robot.get_joint_positions())
+            empty_action = self._robot_q_to_action(self.robot.get_joint_positions())
             yield self._postprocess_action(empty_action)

@@ -1,0 +1,68 @@
+# Mock LLM responses for rotate_knob_drawer (CATS Decorative Pattern Task F)
+# 3-step combination: press center button → twist while holding → pull while holding twist
+
+responses:
+  # --- Probe 0: Demo text comprehension ---
+  - |
+    Demo 1 (Bedside table): Person grabs a round metal knob and pulls. Drawer slides open smoothly. Principle: simple pull on a round knob opens the drawer.
+    Demo 2 (Gas stove): Person pushes a burner knob inward against the panel, holds it in, and turns it to the left. A clicking sound is heard and the burner ignites. Principle: push-in enables rotation.
+    Demo 3 (Kitchen cabinet): Person pushes a flat panel inward, it clicks and pops back, then they pull it open. Spring-loaded push-to-open mechanism.
+    Demo 4 (Desk drawer): Person grips a round knob, turns it clockwise about a quarter turn, hears a click, then pulls the drawer open. Simple rotation-then-pull.
+
+  # --- Stage 1: Exploration ---
+  - "Thought: Let me examine the drawer.\nAction: NAVIGATE_TO[drawer, close_up]"
+
+  - "Thought: I see a round knob with a slightly recessed center region. Let me try pulling.\nAction: PULL[knob]"
+
+  - "Thought: Locked. Maybe the knob rotates. Let me try twisting.\nAction: TWIST[knob, clockwise]"
+
+  - "Thought: Knob is blocked against rotation. There's a recessed center on the knob. Let me feel it.\nAction: TOUCH[knob_center]"
+
+  - "Thought: The center has slight inward compliance (0.10 mm/N) and is recessed 0.5mm. Let me press it.\nAction: PRESS[knob_center]"
+
+  - "Thought: Center displaced 0.5mm inward with no audible click, then slowly returned. The compliance is subtle but distinct from the rigid outer ring. Combined with the rotation lock, this might be a press-to-enable-rotation mechanism like the gas stove knob in Demo 2. I have enough data.\nAction: DONE_EXPLORING[]"
+
+  # --- Probe 1 ---
+  - |
+    Key findings:
+    1. PULL[knob]: 0mm displacement, LOCKED
+    2. TWIST[knob, clockwise]: 0 degrees — knob is BLOCKED against rotation
+    3. TOUCH[knob_center]: center region D=7.8mm, recessed 0.5mm, compliance 0.10 mm/N
+    4. PRESS[knob_center]: 0.5mm inward displacement, no click, slow spring return (0.4s), drawer did NOT open
+    5. TOUCH[drawer_frame]: linear rail guides, horizontal
+
+    The knob cannot rotate and cannot be pulled. The center has slight compliance but no click. Like the gas stove in Demo 2, the center might need to be held inward to disengage the rotation lock — press enables twist, which then enables pull.
+
+  # --- Analysis & Tool Selection ---
+  - |
+    (1) Demo 2 (Gas stove) is most relevant. It shows that pushing a knob inward enables rotation. My exploration found: the knob is completely blocked against rotation, but the center has a distinct recessed region with compliance (0.10 mm/N, 0.5mm travel). This pattern — rigid outer ring + compliant center + rotation blocked — matches "push-in to enable rotation" from Demo 2.
+
+    Demo 4 (Desk drawer) is the trap: same domain (drawer + round knob) and shows simple turn-then-pull, but my knob does NOT rotate at all without intervention. Demo 4's knob rotated freely.
+
+    (2) technique_B — press center (hold), twist while holding, then pull while holding twist.
+
+    (3) Evidence:
+    - TWIST blocked at 0 degrees → something locks rotation
+    - PRESS[knob_center] → slight compliance + slow return → spring-loaded center, must be held
+    - PULL → locked → cam lock needs to be rotated first
+    - Demo 2's structural principle (push-in enables rotation) maps to this
+
+    (4) Plan: Press center (hold), rotate 90° clockwise (hold), pull with 10N.
+
+    SELECTED_TOOL: technique_B
+
+  # --- Stage 3 ---
+  - |
+    Thought: Apply the 3-step technique: press center, hold, twist 90° clockwise, hold, then pull.
+    Action: APPLY_TECHNIQUE[drawer]
+    Parameters: {"press_center": true, "hold_press_while_twist": true, "rotation_degrees": 90, "rotation_direction": "clockwise", "hold_twist_while_pull": true, "pull_force_N": 10.0}
+
+  - "Thought: Drawer is open. Grasp the screwdriver.\nAction: GRASP[screwdriver]"
+
+  - "Thought: Place on countertop.\nAction: PLACE_ON_TOP[screwdriver, countertop]"
+
+  - "DONE"
+
+  # --- Probe 3 ---
+  - |
+    I applied the press-twist-pull technique inspired by Demo 2 (gas stove knob). The key structural mapping was: the gas stove requires pushing the knob inward to enable rotation, and my drawer knob has a compliant center that must serve the same function. Demo 4 (desk drawer) was tempting because it's in the same domain (drawer + round knob), but that knob rotated freely — mine was completely blocked, ruling out simple twist-then-pull.

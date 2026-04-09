@@ -1,0 +1,13 @@
+# Google Gemini API backend
+# Requires: GEMINI_API_KEY in .env
+# Model can be overridden via CLI: --model gemini-2.5-flash
+type: gemini
+system_message: "You are a robot agent controlling a mobile manipulator in a household environment."
+keep_message_history: false
+verbose: true
+generation_params:
+  model: "gemini-2.0-flash"
+  max_tokens: 8192
+  temperature: 0
+  top_p: 1
+  stop: null

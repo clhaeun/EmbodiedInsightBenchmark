@@ -1,0 +1,42 @@
+(define (problem micro_glass_shard_pickup-0)
+    (:domain omnigibson)
+
+    (:objects
+        potato.n.01_1 - potato.n.01
+        lettuce.n.03_1 - lettuce.n.03
+        broccoli.n.02_1 - broccoli.n.02
+        vacuum.n.04_1 - vacuum.n.04
+        sponge.n.01_1 - sponge.n.01
+        broom.n.01_1 - broom.n.01
+        carving_knife.n.01_1 - carving_knife.n.01
+        broken__glass.n.01_1 broken__glass.n.01_2 broken__glass.n.01_3 broken__glass.n.01_4 broken__glass.n.01_5 broken__glass.n.01_6 broken__glass.n.01_7 broken__glass.n.01_8 - broken__glass.n.01
+        countertop.n.01_1 - countertop.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        (ontop potato.n.01_1 countertop.n.01_1)
+        (ontop lettuce.n.03_1 countertop.n.01_1)
+        (ontop broccoli.n.02_1 countertop.n.01_1)
+        (ontop vacuum.n.04_1 countertop.n.01_1)
+        (ontop sponge.n.01_1 countertop.n.01_1)
+        (ontop broom.n.01_1 countertop.n.01_1)
+        (ontop carving_knife.n.01_1 countertop.n.01_1)
+        (ontop broken__glass.n.01_1 floor.n.01_1)
+        (ontop broken__glass.n.01_2 floor.n.01_1)
+        (ontop broken__glass.n.01_3 floor.n.01_1)
+        (ontop broken__glass.n.01_4 floor.n.01_1)
+        (ontop broken__glass.n.01_5 floor.n.01_1)
+        (ontop broken__glass.n.01_6 floor.n.01_1)
+        (ontop broken__glass.n.01_7 floor.n.01_1)
+        (ontop broken__glass.n.01_8 floor.n.01_1)
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal
+        (not (ontop broken__glass.n.01_1 floor.n.01_1))
+    )
+)

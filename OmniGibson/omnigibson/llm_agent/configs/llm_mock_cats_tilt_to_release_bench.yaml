@@ -1,0 +1,80 @@
+# Mock LLM responses for tilt_to_release_bench (CATS Decorative Pattern Task G)
+#
+# Pipeline (v2):
+#   Probe 0 → Stage 1 (exploration) → Probe 1 → Analysis & Tool Selection
+#   → Stage 3 (execution) → Probe 3
+
+responses:
+  # --- Probe 0: Demo text comprehension ---
+  - |
+    Demo 1: A toolbox opened by flipping a metal clasp upward, then lifting the lid. Key principle: front-mounted mechanical release.
+    Demo 2: A playground see-saw. A child steps on one end pushing it down, the opposite end rises, launching a ball. Key principle: pivot — force on one end causes opposite end to rise.
+    Demo 3: A toy chest opened by sliding the top forward along grooves. Key principle: horizontal translation along rails.
+    Demo 4: A gift box opened by lifting the lid straight up and separating it from the base. Key principle: direct vertical separation, no hinge constraint.
+
+  # --- Stage 1: Exploration ---
+  - "Thought: Let me examine the chest closely to understand its structure.\nAction: NAVIGATE_TO[chest, close_up]"
+
+  - "Thought: There's a metal latch on the front. Let me try to flip it.\nAction: PUSH[latch, upward]"
+
+  - "Thought: The latch is fixed — decorative. Let me try lifting the front directly.\nAction: LIFT[lid, front]"
+
+  - "Thought: Front is locked by an internal catch. Let me check the front edge.\nAction: TOUCH[lid_front_edge]"
+
+  - "Thought: Found a small cylindrical metal protrusion on the underside of the front edge, pointing downward with slight vertical play. Let me examine the rear.\nAction: NAVIGATE_TO[chest, rear_view]"
+
+  - "Thought: I can see hinges at the rear. Let me try pressing the rear edge down.\nAction: PRESS[lid, rear_end]"
+
+  - "Thought: Rear displaced 3.2mm, front rose 0.5mm, and a metallic click from the front area. On release, a second click — the mechanism resets. Let me also try pressing the center for comparison.\nAction: PRESS[lid, center]"
+
+  - "Thought: Center press: 0.4mm flex, weak vibration (980 Hz) but NO front displacement. The rear press is the only one that produces front rise + strong click. Like a see-saw (Demo 2): rear down → front up. I have enough data.\nAction: DONE_EXPLORING[]"
+
+  # --- Probe 1: Context feature reflection ---
+  - |
+    Key findings:
+    1. Decorative latch: fixed, welded, no mechanical function (PUSH → 0mm displacement)
+    2. Front lift blocked: internal catch at front edge prevents direct opening
+    3. Front edge pin: small cylindrical metal protrusion (5mm diameter, 8mm length) pointing downward, slight vertical play
+    4. Rear press: rear -3.2mm, front +0.5mm, metallic click (1180 Hz). Returns to flat on release with second click (1210 Hz).
+    5. Center press: 0.4mm flex, weak vibration (980 Hz), but NO front displacement — different from rear press
+    6. Rear hinge: functional, low rotational resistance
+
+    The rear press produces a small but detectable front rise + click, while the center press does not. This asymmetry suggests the rear press creates a pivot effect (like Demo 2's see-saw), causing the front to rise enough to release the hidden catch. But pressing alone doesn't open — the mechanism resets on release.
+
+  # --- Analysis & Tool Selection (unified) ---
+  - |
+    === Situation Analysis ===
+    The decorative latch is non-functional (welded). The actual lock involves a downward-pointing pin on the front edge underside.
+
+    Pressing the rear edge causes a small front rise (+0.5mm) and a click — the pin likely clears its catch momentarily. Releasing the rear causes a second click (pin drops back). Center press produces a weak vibration but NO front rise — only rear press has the pivot effect.
+
+    === Demo Comparison ===
+    Demo 2 (see-saw) matches the structural principle: force on one end → opposite end rises. The see-saw is in a completely different domain (playground), but the physics are identical — pivot around a fulcrum.
+
+    Demo 1 (toolbox clasp) is the visual trap — the latch is decorative.
+
+    === Execution Plan ===
+    Press rear edge with ~12N (matching the force that produced the click), hold pressure, then lift front with ~8N. Must hold rear press — if released, the pin drops back (second click).
+
+    SELECTED_TOOL: technique_B
+
+  # --- Stage 3: Execution ---
+  - |
+    Thought: Apply tilt-and-lift like a see-saw. Press rear edge to pivot the lid and clear the catch pin. Must hold rear pressure while lifting front — if I release, the pin drops back.
+    Action: APPLY_TECHNIQUE[lid]
+    Parameters: {"rear_press_force_N": 12.0, "press_position": "rear_edge", "hold_while_lift": true, "front_lift_force_N": 8.0}
+
+  - "Thought: The chest is open. I can see the necklace inside.\nAction: GRASP[necklace]"
+
+  - "Thought: Place the necklace down to complete the task.\nAction: PLACE_ON_TOP[necklace, floor]"
+
+  - "DONE"
+
+  # --- Probe 3: Adaptation reflection ---
+  - |
+    I applied the see-saw principle from Demo 2: pressing one end down causes the opposite end to rise. The key was recognizing that both center and rear presses produced vibrations, but ONLY the rear press produced front displacement (+0.5mm) and a strong click — this asymmetry was the critical clue.
+
+    - Rear force: 12N, matching the exploration force that triggered the front click.
+    - Hold while lift: Critical — the second click on release confirmed the mechanism resets, so rear pressure must be maintained.
+    - Front lift force: 8N, moderate.
+    - The decorative latch initially suggested Demo 1 (flip and lift), but was immediately ruled out. Demo 4 (lift straight up) was also ruled out since the rear brackets constrain the lid to rotation only.

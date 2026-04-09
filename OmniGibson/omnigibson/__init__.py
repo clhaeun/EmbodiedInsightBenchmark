@@ -5,6 +5,69 @@ import shutil
 import signal
 import tempfile
 
+# ---------------------------------------------------------------------------
+# Monkey-patch torch.from_numpy to work around numpy 1.x / torch 2.5 ABI
+# mismatch.  PyTorch 2.5 wheels are compiled against the numpy 2.x C ABI,
+# but Isaac Sim pins numpy < 2.  The mismatch causes torch.from_numpy() to
+# raise ``TypeError: expected np.ndarray (got numpy.ndarray)``.
+# We fall back to ``torch.as_tensor`` which copies the data but avoids the
+# C-level type check.
+# ---------------------------------------------------------------------------
+try:
+    import torch as _th
+    import numpy as _np
+
+    _orig_from_numpy = _th.from_numpy
+
+    # Map numpy dtype to torch dtype for the fallback path
+    _NP_TO_TORCH_DTYPE = {
+        _np.float16: _th.float16, _np.float32: _th.float32, _np.float64: _th.float64,
+        _np.int8: _th.int8, _np.int16: _th.int16, _np.int32: _th.int32, _np.int64: _th.int64,
+        _np.uint8: _th.uint8, _np.bool_: _th.bool,
+    }
+
+    def _patched_from_numpy(ndarray):
+        try:
+            return _orig_from_numpy(ndarray)
+        except TypeError:
+            arr = _np.ascontiguousarray(ndarray)
+            torch_dtype = _NP_TO_TORCH_DTYPE.get(arr.dtype.type, _th.float32)
+            if arr.size == 0:
+                return _th.empty(arr.shape, dtype=torch_dtype)
+            # Use frombuffer to share memory without the numpy ABI check
+            t = _th.frombuffer(arr, dtype=torch_dtype).reshape(arr.shape)
+            # Keep a reference so numpy doesn't free the memory
+            t.__numpy_ref = arr
+            return t
+
+    _th.from_numpy = _patched_from_numpy
+
+    # Also patch Tensor.numpy() — the reverse direction has the same ABI issue.
+    # trimesh calls np.asanyarray(tensor) which triggers tensor.__array__() ->
+    # tensor.numpy() and fails with "Cannot interpret dtype('float64')".
+    _TORCH_TO_NP_DTYPE = {v: k for k, v in _NP_TO_TORCH_DTYPE.items()}
+    _orig_tensor_numpy = _th.Tensor.numpy
+
+    def _patched_tensor_numpy(self, *, force=False):
+        try:
+            return _orig_tensor_numpy(self, force=force)
+        except (TypeError, RuntimeError):
+            t = self.detach().cpu() if self.requires_grad or not self.is_cpu else self
+            if not self.is_cpu:
+                t = self.detach().cpu()
+            np_dtype = _TORCH_TO_NP_DTYPE.get(t.dtype, _np.float32)
+            if t.numel() == 0:
+                return _np.empty(tuple(t.shape), dtype=np_dtype)
+            return _np.frombuffer(
+                t.untyped_storage(), dtype=np_dtype, count=t.numel(),
+                offset=t.storage_offset() * t.element_size(),
+            ).reshape(tuple(t.shape))
+
+    _th.Tensor.numpy = _patched_tensor_numpy
+except Exception:
+    pass
+# ---------------------------------------------------------------------------
+
 from omnigibson.controllers import REGISTERED_CONTROLLERS
 from omnigibson.envs import Environment, VectorEnvironment
 from omnigibson.macros import gm

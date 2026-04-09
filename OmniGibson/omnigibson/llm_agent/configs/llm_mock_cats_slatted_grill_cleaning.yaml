@@ -1,0 +1,95 @@
+# Mock LLM responses for CATS Task 2.3-E: Slatted Grill Cleaning — 6-DOF Parameter Adaptation
+# Oracle (GT) sequence — 4-stage structure
+#
+# This task evaluates parameter adaptation (yaw rotation), NOT tool selection.
+# The scraper is the only tool provided.
+# Success condition: yaw in [20, 49] degrees.
+#
+# No demos available → Probe 0 skipped, no Stage 2 / Probe 2
+#
+# Stage 1: Exploration (4 explore + DONE_EXPLORING)
+# Probe 1: Metacognitive probe
+# Tool Selection Step: Analysis + 6-DOF parameter definition + SELECTED_TOOL
+# Stage 3: Adaptive Execution (3 action steps + DONE)
+# Probe 3: Metacognitive probe (Stage 3)
+
+responses:
+  # === Stage 1: Exploration (5 responses) ===
+
+  - |
+    Thought: I need to see the grill and understand the workspace. Let me navigate to the countertop where the grill is.
+    Action: NAVIGATE_TO[countertop, grill]
+
+  - |
+    Thought: I can see the grill grate with sticky residue and parallel gaps between metal guide walls. Let me inspect the grill surface more closely to understand its topology.
+    Action: INSPECT[grill_surface]
+
+  - |
+    Thought: The grill has deep parallel gaps along the X-axis with sticky residue on the raised surfaces. Metal guide walls block lateral movement. Let me do a test push with the scraper held straight to get baseline sensor data.
+    Action: PROBE_STRAIGHT[]
+
+  - |
+    Thought: The straight probe shows displacement_y of only 0.015 m before stopping, with z_displacement of -0.020 m — the blade dropped into the gaps. Force_y reached 85 N. Let me try increasing force to see if brute force can overcome the resistance.
+    Action: PROBE_HARD_STRAIGHT[]
+
+  - |
+    Thought: Even with 150 N force, displacement barely changed (0.017 m) and material_strain hit 0.94 — near structural failure. The problem is mechanical (blade dropping into gaps), not insufficient force. I have the key sensor data.
+    Action: DONE_EXPLORING[]
+
+  # === Metacognitive Probe 1 ===
+
+  - |
+    Key findings from sensor data: (1) PROBE_STRAIGHT showed z_displacement of -0.020 m — the scraper blade physically dropped into the grill gaps when pushed straight. This is a geometric trapping problem, not a friction or adhesion issue. (2) PROBE_HARD_STRAIGHT with 150 N force achieved only 0.017 m displacement (vs 0.015 m at default), while material_strain reached 0.94 — near the structural failure limit. Increasing Y-axis force cannot solve the problem because the blade is mechanically trapped in the gaps. The resistance is structural, not frictional. (3) The grill has deep parallel gaps running along the X-axis, with rigid metal guide walls on both sides preventing any X-axis lateral movement. The scraper blade is wider than the grill but far wider than individual gaps.
+
+  # === Tool Selection Step (no demos — sensor-data-only reasoning) ===
+
+  - |
+    (1) I reference Demo 1 (bicycle crossing train tracks at a diagonal). The abstract physical principle: when linear motion is trapped by parallel gaps aligned perpendicular to the direction of travel, rotating the tool in the yaw axis causes its profile to span across the gaps rather than falling into them. This is exactly what happens with the scraper on the grill — the blade edge falls into the X-axis gaps when pushed straight (yaw=0).
+
+    (2) The sensor data confirms the problem:
+    - PROBE_STRAIGHT: z_displacement = -0.020 m (blade dropped into gaps), displacement_y = 0.015 m (stalled)
+    - PROBE_HARD_STRAIGHT: 150 N force → material_strain = 0.94, displacement_y = 0.017 m (no meaningful progress)
+    - The resistance is geometric (blade caught in gaps), NOT frictional — force increase is futile
+
+    (3) Physical reasoning for 6-DOF parameters:
+    - The blade must be rotated in yaw so its projection in the push direction (Y-axis) exceeds the gap width, preventing it from dropping in
+    - At the same time, the effective cleaning width (X-axis projection) must still cover the full grill width (0.20 m)
+    - A yaw angle of 30 degrees provides a good balance: the blade bridges the gaps while maintaining sufficient cleaning width
+    - Roll and pitch must stay near zero to maintain full surface contact
+    - Forward velocity in Y-axis is required for the push motion
+
+    (4) Final action:
+    NEW_ACTION[PUSH_FORWARD, scraper_801, charcoal_grill_806]: '{"linear_velocity": {"x": 0.0, "y": 0.1, "z": 0.0}, "applied_force": {"x": 0.0, "y": 0.0, "z": 0.0}, "orientation_euler_angles": {"roll": 0.0, "pitch": 0.0, "yaw": 30.0}}'
+
+    SELECTED_TOOL: scraper
+
+  # === Stage 3: Adaptive Execution (4 responses) ===
+
+  - |
+    Thought: Navigate to the grill to position myself for the cleaning action.
+    Action: NAVIGATE_TO[charcoal_grill_806]
+
+  - |
+    Thought: Pick up the scraper. This is the only tool available.
+    Action: GRASP[scraper_801]
+
+  - |
+    Thought: Following Demo 1's principle — rotate the scraper in yaw to bridge across the grill gaps. A 30-degree yaw angle ensures the blade's Y-projection spans the gaps while maintaining full grill width coverage. Push forward with steady velocity.
+    Action: NEW_ACTION[PUSH_FORWARD, scraper_801, charcoal_grill_806]: '{"linear_velocity": {"x": 0.0, "y": 0.1, "z": 0.0}, "applied_force": {"x": 0.0, "y": 0.0, "z": 0.0}, "orientation_euler_angles": {"roll": 0.0, "pitch": 0.0, "yaw": 30.0}}'
+
+  - |
+    Thought: The grill surface has been cleaned in a single push. The scraper blade bridged the gaps at 30 degrees yaw and scraped off the sticky residue.
+    Action: DONE[]
+
+  # === Metacognitive Probe 3 (Stage 3) ===
+
+  - |
+    Yes, my chosen parameters resolved the resistance observed in exploration. The key physical mechanics:
+
+    1. Problem identification: PROBE_STRAIGHT showed the blade dropping into gaps (z_displacement = -0.020 m) because the blade's thin edge profile (0.005 m) was narrower than the gap width. PROBE_HARD_STRAIGHT confirmed that increasing force (150 N, strain 0.94) could not overcome this geometric trapping.
+
+    2. Solution from Demo 1: The bicycle/train track analogy showed that rotating the direction of travel relative to parallel gaps prevents the wheel from dropping in. Applying this principle: rotating the scraper blade by 30 degrees in yaw transforms its effective profile in the push direction from the thin edge (0.005 m) to a diagonal cross-section that spans across the gaps.
+
+    3. Why yaw specifically: The resistance was in the Y-axis (forward push blocked by gaps running along X-axis). The solution required rotation in the Z-axis (yaw) — a completely different dimension than the axis of resistance. This cross-dimensional reasoning was the key insight from Demo 1, distinguishing it from the intuitive but incorrect approaches (more force, different tool, lateral movement).
+
+    4. Parameter balance: 30 degrees was chosen to ensure both gap bridging AND full grill width coverage. Too little yaw (< 20 degrees) and the blade still drops into gaps. Too much yaw (> 49 degrees) and the effective cleaning width falls below the grill width, leaving uncleaned areas.

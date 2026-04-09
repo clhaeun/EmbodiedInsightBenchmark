@@ -1,0 +1,42 @@
+(define (problem spread_jam_on_cracker-0)
+    (:domain omnigibson)
+
+    (:objects
+        half__pretzel.n.01_1 - half__pretzel.n.01
+        jam.n.01_1 - jam.n.01
+        table_knife.n.01_1 - table_knife.n.01
+        plate.n.04_1 - plate.n.04
+        chopping_board.n.01_1 - chopping_board.n.01
+        place_mat.n.01_1 - place_mat.n.01
+        rubber_mat.n.01_1 - rubber_mat.n.01
+        countertop.n.01_1 - countertop.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        ; All task objects placed separately on countertop — LLM must decide how to arrange
+        (ontop half__pretzel.n.01_1 countertop.n.01_1)
+        (ontop plate.n.04_1 countertop.n.01_1)
+        (ontop table_knife.n.01_1 countertop.n.01_1)
+        (ontop chopping_board.n.01_1 countertop.n.01_1)
+        (ontop place_mat.n.01_1 countertop.n.01_1)
+        ; rubber_mat starts on countertop separately — LLM may place it as a non-slip fixture
+        (ontop rubber_mat.n.01_1 countertop.n.01_1)
+
+        ; jam is created at runtime by spreading
+        (future jam.n.01_1)
+
+        ; Room assignments
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal
+        (and
+            (real jam.n.01_1)
+            (covered half__pretzel.n.01_1 jam.n.01_1)
+        )
+    )
+)

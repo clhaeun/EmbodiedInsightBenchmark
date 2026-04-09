@@ -1676,7 +1676,7 @@ class EntityPrim(XFormPrim):
             for joint_name, joint_state in state["joints"].items():
                 self._joints[joint_name]._load_state(state=joint_state)
 
-        elif self.n_joints > 0:
+        elif self.n_joints > 0 and "joint_pos" in state:
             self.set_joint_positions(state["joint_pos"])
             self.set_joint_velocities(state["joint_vel"])
 

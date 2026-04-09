@@ -1,0 +1,44 @@
+(define (problem spread_butter_on_toast-0)
+    (:domain omnigibson)
+
+    (:objects
+        toast.n.01_1 - toast.n.01
+        butter.n.01_1 - butter.n.01
+        melted__butter.n.01_1 - melted__butter.n.01
+        table_knife.n.01_1 - table_knife.n.01
+        plate.n.04_1 - plate.n.04
+        chopping_board.n.01_1 - chopping_board.n.01
+        place_mat.n.01_1 - place_mat.n.01
+        rubber_mat.n.01_1 - rubber_mat.n.01
+        countertop.n.01_1 - countertop.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        ; All task objects placed separately on countertop — LLM must decide how to arrange
+        (ontop toast.n.01_1 countertop.n.01_1)
+        (ontop plate.n.04_1 countertop.n.01_1)
+        (ontop butter.n.01_1 countertop.n.01_1)
+        (ontop table_knife.n.01_1 countertop.n.01_1)
+        (ontop chopping_board.n.01_1 countertop.n.01_1)
+        (ontop place_mat.n.01_1 countertop.n.01_1)
+        ; rubber_mat starts on countertop separately — LLM may place it on place_mat as a non-slip fixture
+        (ontop rubber_mat.n.01_1 countertop.n.01_1)
+
+        ; melted__butter is created at runtime by spreading
+        (future melted__butter.n.01_1)
+
+        ; Room assignments
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal
+        (and
+            (real melted__butter.n.01_1)
+            (covered toast.n.01_1 melted__butter.n.01_1)
+        )
+    )
+)

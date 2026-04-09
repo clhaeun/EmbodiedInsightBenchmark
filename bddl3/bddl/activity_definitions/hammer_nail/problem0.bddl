@@ -1,0 +1,57 @@
+(define (problem hammer_nail-0)
+    (:domain omnigibson)
+
+    (:objects
+        ; Core task objects
+        clout_nail.n.01_1 - clout_nail.n.01
+        hammer.n.02_1 - hammer.n.02
+        cardboard.n.01_1 - cardboard.n.01
+
+        ; Heavy objects (for constraining the cardboard against the wall)
+        bookend.n.01_1 - bookend.n.01
+        fuel__can.n.01_1 - fuel__can.n.01
+        canister.n.02_1 - canister.n.02
+
+        ; Distractor holders (look pierceable but won't work as fixture)
+        chopping_board.n.01_1 - chopping_board.n.01
+        sponge.n.01_1 - sponge.n.01
+        rubber_mat.n.01_1 - rubber_mat.n.01
+
+        ; Light objects (too light to constrain — distractors)
+        pencil.n.01_1 - pencil.n.01
+        rubber_eraser.n.01_1 - rubber_eraser.n.01
+        dixie_cup.n.01_1 - dixie_cup.n.01
+
+        ; Scene furniture
+        countertop.n.01_1 - countertop.n.01
+        wall.n.01_1 - wall.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        ; All task objects on the countertop — LLM must decide the strategy
+        (ontop clout_nail.n.01_1 countertop.n.01_1)
+        (ontop hammer.n.02_1 countertop.n.01_1)
+        (ontop cardboard.n.01_1 countertop.n.01_1)
+        (ontop bookend.n.01_1 countertop.n.01_1)
+        (ontop fuel__can.n.01_1 countertop.n.01_1)
+        (ontop canister.n.02_1 countertop.n.01_1)
+        (ontop chopping_board.n.01_1 countertop.n.01_1)
+        (ontop sponge.n.01_1 countertop.n.01_1)
+        (ontop rubber_mat.n.01_1 countertop.n.01_1)
+        (ontop pencil.n.01_1 countertop.n.01_1)
+        (ontop rubber_eraser.n.01_1 countertop.n.01_1)
+        (ontop dixie_cup.n.01_1 countertop.n.01_1)
+
+        ; Room assignments
+        (inroom countertop.n.01_1 kitchen)
+        (inroom wall.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal
+        (nailed clout_nail.n.01_1)
+    )
+)

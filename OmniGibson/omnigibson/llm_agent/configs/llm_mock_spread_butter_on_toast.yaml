@@ -1,0 +1,35 @@
+# Mock LLM: oracle (GT) action sequence for spread_butter_on_toast
+#
+# All objects are on the same countertop.
+# → One NAVIGATE_TO at the start is sufficient.
+#
+# Optimal sequence:
+#   1. NAVIGATE_TO countertop
+#   2. GRASP toast → PLACE_ON_TOP rubber_mat (non-slip surface)
+#   3. GRASP knife → SPREAD melted butter on toast
+#   4. DONE
+#
+# Usage:
+#   python -m omnigibson.examples.llm_agent.run_llm_agent \
+#     --model mock --task spread_butter_on_toast \
+#     --scene house_single_floor --robot Fetch --symbolic
+
+type: mock
+responses:
+  # Step 1: Navigate to the countertop (all objects are here)
+  - "Thought: All objects are on the countertop. I need to navigate there first.\nAction: NAVIGATE_TO[countertop.n.01_1]"
+
+  # Step 2: Pick up toast
+  - "Thought: I need to place the toast on the rubber mat first so it won't slide during spreading.\nAction: GRASP[toast.n.01_1]"
+
+  # Step 3: Place toast on rubber_mat
+  - "Thought: Place the toast on the rubber mat for a non-slip surface.\nAction: PLACE_ON_TOP[rubber_mat.n.01_1]"
+
+  # Step 4: Grasp the knife
+  - "Thought: Now I need the table knife to spread butter.\nAction: GRASP[table_knife.n.01_1]"
+
+  # Step 5: Spread melted butter on toast
+  - "Thought: Spread melted butter onto the toast.\nAction: SPREAD[melted__butter.n.01_1, toast.n.01_1]"
+
+  # Step 6: Done
+  - "Thought: The toast is covered with melted butter. Task complete.\nAction: DONE[]"

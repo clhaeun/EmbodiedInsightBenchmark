@@ -2423,3 +2423,7 @@ ID,category,board link,synset,approved,has_system,mass estimate ig2,google/gemin
 2707,ping_pong_ball,ping_pong_ball,ping_pong_ball.n.01,1,FALSE,,,,,,,,0.003,0.003,,
 2708,ping_pong_paddle,ping_pong_paddle,ping_pong_paddle.n.01,1,FALSE,,,,,,,,0.090,0.090,,
 2709,ping_pong_table,ping_pong_table,ping_pong_table.n.01,1,FALSE,,,,,,,,70.000,70.000,,
+2710,rubber_mat,rubber_mat,rubber_mat.n.01,1,FALSE,,0.5,0.5,0.5,0.5,1.000,,,0.500,,
+2711,floor_landing,floor_landing,floor_landing.n.01,1,FALSE,,0.5,0.5,0.5,0.5,1.000,,,0.500,,
+2712,stair_first_step,stair_first_step,stair_first_step.n.01,1,FALSE,,0.5,0.5,0.5,0.5,1.000,,,0.500,,
+2713,cardboard,cardboard,cardboard.n.01,1,FALSE,0.475,0.046,0.107,0.7792,0.05,16.939,0.475,,0.079,,

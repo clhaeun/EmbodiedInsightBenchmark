@@ -126,6 +126,12 @@ class ToggledOn(AbsoluteObjectState, BooleanStateMixin, LinkBasedStateMixin, Upd
             # If the object is open, we cannot toggle it on
             return False
 
+        # If the object is broken, we cannot toggle it on
+        if new_value:
+            from omnigibson.object_states.broken import Broken
+            if Broken in self.obj.states and self.obj.states[Broken].get_value():
+                return False
+
         self.value = new_value
 
         # Choose which color to apply to the toggle marker
@@ -210,6 +216,14 @@ class ToggledOn(AbsoluteObjectState, BooleanStateMixin, LinkBasedStateMixin, Upd
         self._check_overlap = check_overlap
 
     def _update(self):
+        # If the object is broken, force it off and stop.
+        from omnigibson.object_states.broken import Broken
+        if Broken in self.obj.states and self.obj.states[Broken].get_value():
+            if self.value:
+                self.set_value(False)
+            self.robot_can_toggle_steps = 0
+            return
+
         # If the object is required to be closed to toggle on, and it is not, we turn it off and stop.
         if self.requires_closed and self.obj.states[Open].get_value():
             self.set_value(False)

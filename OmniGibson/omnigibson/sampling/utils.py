@@ -78,7 +78,7 @@ TASK_INFO_FPATH = os.path.join(folder_path, "BEHAVIOR-1K Tasks.csv")
 SYNSET_INFO_FPATH = os.path.join(folder_path, "BEHAVIOR-1K Synsets.csv")
 
 
-UNSUPPORTED_PREDICATES = {"broken", "assembled"}
+UNSUPPORTED_PREDICATES = {"assembled"}
 
 
 # CAREFUL!! Only run this ONCE before starting sampling!!!

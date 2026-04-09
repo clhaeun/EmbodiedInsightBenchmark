@@ -1,0 +1,113 @@
+# Mock LLM responses for CATS Task 2.3-A: Retrieve Egg from Narrow Gap
+# Oracle (GT) sequence — 4-stage structure, 7 exploration steps
+#
+# Stage 1: Exploration (6 explore + DONE_EXPLORING)
+# Probe 1: Metacognitive probe
+# Stage 2: Demo observation
+# Probe 2: Metacognitive probe
+# Tool Selection Step: Choice + plan with NEW_ACTION
+# Probe 3: Metacognitive probe (Stage 3)
+
+responses:
+  # === Stage 1: Exploration (7 responses) ===
+
+  - |
+    Thought: I need to find the egg. Let me go to the gap between the fridge and the cabinet.
+    Action: NAVIGATE_TO[gap]
+
+  - |
+    Thought: I see something at the bottom. Let me look from a low angle to confirm.
+    Action: NAVIGATE_TO[gap, low_angle]
+
+  - |
+    Thought: I can see an egg on the floor. I need to know the exact gap width.
+    Action: TOUCH[gap_walls]
+
+  - |
+    Thought: The gap is 2-3cm. Let me check if my hand can fit.
+    Action: PUSH[hand, gap]
+
+  - |
+    Thought: My hand can't fit. Let me examine the egg more closely.
+    Action: LOOK_CLOSER[egg]
+
+  - |
+    Thought: The egg is fragile. Let me see what's on the countertop.
+    Action: NAVIGATE_TO[countertop]
+
+  - |
+    Thought: I see several objects on the countertop. I have all the information I need about the environment: the gap is 2-3cm wide, my hand cannot fit, the egg is on the floor about 15cm deep, and it is fragile.
+    Action: DONE_EXPLORING[]
+
+  # === Metacognitive Probe 1 ===
+
+  - |
+    The key features are: (1) the gap is extremely narrow at 2-3cm, so only very thin objects can enter; (2) my hand cannot fit, so a tool is required; (3) the egg sits on the floor at the bottom, meaning it must be accessed from below rather than grabbed from above; (4) the egg is fragile and would break if pierced or struck. The combination of narrow entry, floor-level target, and fragility makes this uniquely challenging.
+
+  # === Stage 2: Demo Observation ===
+
+  - |
+    I have observed all five demonstrations. Each shows a different tool used in a different context. The situations range from wide open spaces to narrow confined areas, and the objects have different properties.
+
+  # === Metacognitive Probe 2 ===
+
+  - |
+    Demo 1 (spatula): A thin flat tool slides under an object on a surface to lift it. Similar: extracting an object resting on a surface. Different: the oven is wide, my gap is 2-3cm — but the spatula is thin enough.
+
+    Demo 2 (fork): A pointed tool pierces the target to extract it. Similar: thin tool entering a confined space. Different: piercing would break the egg.
+
+    Demo 3 (tongs): A gripping tool opens to clamp the target from above. Similar: extracting an object. Different: tongs need space to open (~5-6cm), but the gap is only 2-3cm.
+
+    Demo 4 (spoon): A curved tool carefully scoops around the target. Similar: gentle extraction. Different: the curved shape cannot lie flat on the floor to slide under the egg in a narrow gap.
+
+    Demo 5 (towel): A flexible material wraps around the target. Similar: can enter narrow spaces. Different: the egg's smooth round surface provides no grip for fabric.
+
+  # === Tool Selection Step ===
+
+  - |
+    (1) I reference Demo 1 (spatula). The principle — sliding a thin, flat surface under an object to lift it from below — directly addresses my three constraints.
+
+    (2) I select spatula.
+
+    (3) The gap is 2-3cm wide — spatula is thin enough to enter. The egg is on the floor — spatula's flat blade can slide under it. The egg is fragile — spatula supports from below without piercing.
+
+    (4) Action plan:
+    1. NAVIGATE_TO[countertop]
+    2. GRASP[spatula_602]
+    3. NAVIGATE_TO[egg_601]
+    4. NEW_ACTION[SLIDE_UNDER, spatula, egg]: "Insert spatula horizontally into the gap, slide along the floor under the egg so the egg rests on the flat blade"
+    5. PULL[spatula_602]
+    6. PLACE_ON_TOP[egg_601, countertop_kelzer_0]
+
+  # === Stage 3: Adaptive Execution (6 action steps) ===
+
+  - |
+    Thought: I need to go to the countertop to pick up the spatula.
+    Action: NAVIGATE_TO[countertop_kelzer_0]
+
+  - |
+    Thought: Now I grasp the spatula. This commits my tool choice.
+    Action: GRASP[spatula_602]
+
+  - |
+    Thought: I need to move to the gap where the egg is located.
+    Action: NAVIGATE_TO[fridge_dszchb_0]
+
+  - |
+    Thought: The spatula is thin and flat. I will insert it horizontally into the narrow gap, sliding it along the floor under the egg so the egg rests on the flat blade. This matches the principle from Demo 1 (pizza peel), adapted for the 2-3cm gap by keeping the spatula perfectly horizontal.
+    Action: NEW_ACTION[SLIDE_UNDER, spatula_602, egg_601]: "Insert spatula horizontally into the gap, slide along the floor under the egg so the egg rests on the flat blade"
+
+  - |
+    Thought: The egg is now resting on the spatula blade inside the gap. I need to carefully pull the spatula out to extract the egg.
+    Action: PULL[spatula_602]
+
+  - |
+    Thought: The egg is out of the gap, balanced on the spatula. I will place it safely on the countertop.
+    Action: PLACE_ON_TOP[countertop_kelzer_0]
+
+  # === Metacognitive Probe 3 (Stage 3) ===
+
+  - |
+    Yes, I adapted the approach from Demo 1 in two ways:
+    1. Insertion angle: In the demo, the pizza peel enters a wide oven opening horizontally with plenty of clearance. In my case, the gap is only 2-3cm wide, so I had to align the spatula very precisely to fit through the narrow opening. There was no room for angular error.
+    2. Speed and care: The demo shows a relatively quick sliding motion for the large, stable pizza. For the small, round egg, I moved much more slowly to prevent the egg from rolling off the spatula blade during extraction. The egg's center of gravity is higher relative to the spatula surface compared to a flat pizza on a peel.

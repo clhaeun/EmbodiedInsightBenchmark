@@ -1,0 +1,37 @@
+# Mock LLM: ground-truth action sequence for draw_a_line_on_paper
+#
+# All objects (ruler, paper, textbook, pen) are on the same countertop.
+# → One NAVIGATE_TO at the start is sufficient.
+#
+# Correct sequence:
+#   1. NAVIGATE_TO countertop (approach workspace)
+#   2. GRASP ruler → PLACE_ON_TOP sheet (ruler on paper)
+#   3. GRASP textbook → PLACE_ON_TOP ruler (stabilize ruler)
+#   4. GRASP pen → DRAW ink on sheet
+#   5. DONE
+#
+type: mock
+responses:
+  # Step 1: Navigate to the countertop (all objects are here)
+  - "Thought: All objects are on the countertop. I need to navigate there first.\nAction: NAVIGATE_TO[countertop.n.01_1]"
+
+  # Step 2: Grasp the ruler
+  - "Thought: First, place the ruler on the paper.\nAction: GRASP[rule.n.12_1]"
+
+  # Step 3: Place ruler on the sheet
+  - "Thought: Place the ruler on the sheet to use as a straight edge.\nAction: PLACE_ON_TOP[sheet.n.02_1]"
+
+  # Step 4: Grasp the textbook (heavy object)
+  - "Thought: Now place a heavy object on the ruler to hold it down.\nAction: GRASP[textbook.n.01_1]"
+
+  # Step 5: Place textbook on ruler to stabilize it
+  - "Thought: Place the textbook on the ruler to weigh it down so it won't shift while drawing.\nAction: PLACE_ON_TOP[rule.n.12_1]"
+
+  # Step 6: Grasp the pen
+  - "Thought: Now grasp the pen to draw.\nAction: GRASP[pen.n.01_1]"
+
+  # Step 7: Draw a line on the paper
+  - "Thought: Draw a straight line on the paper using the ruler as a guide.\nAction: DRAW[ink.n.01_1, sheet.n.02_1]"
+
+  # Step 8: Done
+  - "Thought: The paper now has ink on it — a straight line drawn along the ruler. Task complete.\nAction: DONE[]"

@@ -1,0 +1,13 @@
+# OpenAI API backend
+# Requires: OPENAI_API_KEY in .env
+# Model can be overridden via CLI: --model gpt-4o
+type: openai
+system_message: "You are a robot agent controlling a mobile manipulator in a household environment."
+keep_message_history: false
+verbose: true
+generation_params:
+  model: "gpt-4o"
+  max_tokens: 16384
+  temperature: 0
+  top_p: 1
+  stop: null

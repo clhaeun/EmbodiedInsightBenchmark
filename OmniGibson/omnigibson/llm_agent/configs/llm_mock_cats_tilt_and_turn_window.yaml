@@ -1,0 +1,77 @@
+# Mock LLM responses for tilt_and_turn_window (CATS Decorative Pattern Task C)
+#
+# Task: Move succulent (pot D=95mm) from inside sill to exterior ledge.
+# Handle UP = swing mode (52mm gap — pot CANNOT fit)
+# Handle DOWN = tilt mode (~150mm gap — pot fits)
+# Handle springs back in ~3s — must hold
+
+responses:
+  # --- Probe 0: Demo text comprehension ---
+  - |
+    Demo 1 (Spacious room window): Person turns handle, pushes window outward on side hinges ~90°. Strong breeze. Principle: swing mode, full opening, needs clear exterior space.
+    Demo 2 (Car sunroof): Person pushes sunroof switch downward, holds it, rear edge of glass tilts up a few cm. Car is under a tree. Principle: partial opening by holding a control, avoids overhead obstacle.
+    Demo 3 (Bathroom sliding window): Person pushes frosted glass window sideways along horizontal track, stops halfway. Principle: horizontal translation on rails.
+    Demo 4 (Kitchen crank window): Person unfolds crank handle, turns clockwise, scissor arm pushes bottom edge outward ~30°, then folds crank back. Principle: mechanical crank with scissor linkage.
+
+  # --- Stage 1: Exploration ---
+  - "Thought: Let me observe the window, the succulent, and the exterior ledge.\nAction: NAVIGATE_TO[window]"
+
+  - "Thought: I see the succulent (pot D=95mm) on the inside sill, an exterior ledge with direct sunlight, and dual hinges. Let me test handle positions.\nAction: TWIST[handle, up]"
+
+  - "Thought: Handle up = swing mode (side cams disengage). Let me see how far swing opens.\nAction: PUSH[window]"
+
+  - "Thought: Swing opens 52mm — pot D=95mm CANNOT fit. Handle-down enables tilt mode (top cams disengage). Let me test pulling the top.\nAction: PULL[window_top]"
+
+  - "Thought: Handle-down tilt: 18mm started, projected gap ~150mm at full tilt — pot would fit! But handle sprang back. I need to hold handle down while pulling. I have enough data.\nAction: DONE_EXPLORING[]"
+
+  # --- Probe 1 ---
+  - |
+    Key findings:
+    1. Handle UP = swing mode: side hinges, but external obstacle at 52mm. Gap 52mm < pot D=95mm → pot CANNOT pass through.
+    2. Handle DOWN = tilt mode: top brackets, tilt started (18mm). Projected gap at full tilt ~150mm > pot D=95mm → pot WOULD FIT.
+    3. Handle spring-returns in ~3s. Tilt was cut short by spring-back.
+    4. Succulent pot: D=95mm, H=80mm, 0.35kg — on inside sill.
+    5. Exterior ledge: concrete, 150mm deep, currently empty, direct sunlight.
+
+    Swing gap (52mm) is physically too narrow for the pot. Tilt gap (~150mm) would fit the pot. I need to hold handle down while pulling the top to complete the tilt.
+
+  # --- Analysis & Tool Selection ---
+  - |
+    (1) Demo 2 (car sunroof) is most relevant. Structural mapping:
+    - Both have two modes; primary mode is blocked by environment
+    - Sunroof slide blocked by branches, my swing blocked at 52mm (pot won't fit)
+    - Sunroof tilt avoids branches, my tilt gap (~150mm) would pass the pot
+    - Both require holding the control in position (spring return)
+
+    Demo 1 is the trap: swing works great in open space, but my 52mm swing gap can't pass the 95mm pot.
+
+    (2) technique_B: hold handle down (tilt mode), pull window top inward, then pass pot through gap to exterior ledge.
+
+    (3) Evidence:
+    - PUSH at handle-up: swing gap 52mm < pot D=95mm → CANNOT FIT
+    - PULL at handle-down: tilt started, projected gap 150mm > pot D=95mm → WOULD FIT
+    - Handle spring-back at 2.9s → must hold during pull
+
+    (4) Plan: Hold handle down, pull top inward with ~4N to ~15° tilt, then pass pot through and place on exterior ledge.
+
+    SELECTED_TOOL: technique_B
+
+  # --- Stage 3 ---
+  - |
+    Thought: Apply tilt mode. Hold handle down, pull top inward to create gap wide enough for pot.
+    Action: APPLY_TECHNIQUE[window]
+    Parameters: {"handle_position": "down", "hold_handle": true, "open_action": "pull_top_inward", "pull_force_N": 4.0, "target_tilt_degrees": 15}
+
+  - "Thought: Window is tilted. Pick up the succulent from the inside sill.\nAction: GRASP[succulent]"
+
+  - "Thought: Place the succulent on the exterior ledge through the tilted gap.\nAction: PLACE_ON_LEDGE[succulent]"
+
+  - "DONE"
+
+  # --- Probe 3 ---
+  - |
+    The task required passing a 95mm pot through the window opening. This made the choice binary:
+    - Swing (handle up): 52mm gap — pot physically cannot fit (52 < 95)
+    - Tilt (handle down): ~150mm gap — pot fits with room to spare (150 > 95)
+
+    Demo 2 (sunroof) showed the same pattern: primary opening mode blocked by environment, alternative tilt mode avoids the obstacle. The key adaptation was recognizing that handle-down (not up) activates tilt, and the handle must be held due to spring return.

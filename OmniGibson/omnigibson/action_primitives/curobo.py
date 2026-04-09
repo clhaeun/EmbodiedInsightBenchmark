@@ -8,6 +8,7 @@ import omnigibson as og
 import omnigibson.lazy as lazy
 import omnigibson.utils.transform_utils as T
 from omnigibson.macros import create_module_macros
+from omnigibson.utils.ui_utils import create_module_logger
 from omnigibson.prims.rigid_dynamic_prim import RigidDynamicPrim
 from omnigibson.robots.holonomic_base_robot import HolonomicBaseRobot
 from omnigibson.utils.constants import JointType
@@ -22,11 +23,13 @@ th.backends.cudnn.allow_tf32 = True
 # Create settings for this module
 m = create_module_macros(module_path=__file__)
 
-m.HOLONOMIC_BASE_PRISMATIC_JOINT_LIMIT = 5.0  # meters
+m.HOLONOMIC_BASE_PRISMATIC_JOINT_LIMIT = 20.0  # meters (must be large enough for any scene coordinate)
 m.HOLONOMIC_BASE_REVOLUTE_JOINT_LIMIT = math.pi * 2  # radians
 
 m.DEFAULT_COLLISION_ACTIVATION_DISTANCE = 0.005
 m.DEFAULT_ATTACHED_OBJECT_SCALE = 0.8
+
+log = create_module_logger(module_name=__name__)
 
 
 class CuRoboEmbodimentSelection(str, Enum):
@@ -251,7 +254,7 @@ class CuRoboMotionGenerator:
         obstacles = {"cuboid": None, "sphere": None, "mesh": [], "cylinder": None, "capsule": None}
         robot_transform = T.pose_inv(T.pose2mat(self.robot.root_link.get_position_orientation()))
 
-        if og.sim.floor_plane is not None:
+        if og.sim.floor_plane is not None and not getattr(self, '_skip_floor_collision', False):
             prim = og.sim.floor_plane.prim.GetChildren()[0]
             m = lazy.curobo.util.usd_helper.get_mesh_attrs(
                 prim, cache=self.usd_help._xform_cache, transform=robot_transform.numpy()
@@ -284,9 +287,16 @@ class CuRoboMotionGenerator:
                     )
                     obstacles["mesh"].append(m)
 
+        n_meshes = len(obstacles["mesh"])
+        if not hasattr(self, '_obstacle_count_logged') or self._obstacle_count_logged != n_meshes:
+            log.info(f"[DIAG] update_obstacles: {n_meshes} collision meshes "
+                     f"(floor_included={og.sim.floor_plane is not None and not getattr(self, '_skip_floor_collision', False)})")
+            self._obstacle_count_logged = n_meshes
+
         world = lazy.curobo.geom.types.WorldConfig(**obstacles)
         world = world.get_collision_check_world()
-        self.mg[CuRoboEmbodimentSelection.DEFAULT].update_world(world)
+        for emb_sel, mg in self.mg.items():
+            mg.update_world(world)
 
     def check_collisions(
         self,

@@ -573,11 +573,12 @@ class StatefulObject(BaseObject):
 
     def load_non_kin_state(self, state):
         # Load all states that are stateful
+        non_kin = state.get("non_kin", {})
         for state_type, state_instance in self._states.items():
             state_name = get_state_name(state_type)
             if state_instance.stateful:
-                if state_name in state["non_kin"]:
-                    state_instance.load_state(state=state["non_kin"][state_name], serialized=False)
+                if state_name in non_kin:
+                    state_instance.load_state(state=non_kin[state_name], serialized=False)
                 else:
                     log.debug(f"Missing object state [{state_name}] in the state dump for obj {self.name}")
 

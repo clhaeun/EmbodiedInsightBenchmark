@@ -1,0 +1,55 @@
+# Mock LLM: ground-truth action sequence for hammer_nail (CA_hammer)
+#
+# Correct sequence:
+#   1. NAVIGATE_TO countertop
+#   2. GRASP nail
+#   3. PIERCE cardboard with nail  (nail is now Pierced, embedded in cardboard)
+#   4. GRASP cardboard → PLACE_AGAINST wall  (cardboard with nail against wall)
+#   5. GRASP bookend → PLACE_NEXT_TO cardboard   (constraint 1/3)
+#   6. GRASP fuel_can → PLACE_NEXT_TO cardboard  (constraint 2/3)
+#   7. GRASP canister → PLACE_NEXT_TO cardboard  (constraint 3/3)
+#   8. GRASP hammer → HAMMER nail              (success!)
+#
+type: mock
+responses:
+  # Step 1: Navigate to the countertop (all objects are here)
+  - "Thought: All objects are on the countertop. I need to navigate there first.\nAction: NAVIGATE_TO[countertop.n.01_1]"
+
+  # Step 2: Pick up the nail
+  - "Thought: I need to pick up the clout nail first so I can pierce it through the cardboard.\nAction: GRASP[clout_nail.n.01_1]"
+
+  # Step 3: Pierce the cardboard with the nail (nail becomes embedded/Pierced)
+  - "Thought: Now I pierce the cardboard with the nail to embed it, so the cardboard holds the nail steady.\nAction: PIERCE[cardboard.n.01_1, clout_nail.n.01_1]"
+
+  # Step 4: Pick up the cardboard (with nail embedded)
+  - "Thought: I need to pick up the cardboard (which now has the nail embedded in it) and place it against the wall.\nAction: GRASP[cardboard.n.01_1]"
+
+  # Step 5: Place cardboard against the wall
+  - "Thought: Place the cardboard with the embedded nail against the wall.\nAction: PLACE_AGAINST[wall.n.01_1]"
+
+  # Step 6: Pick up bookend (heavy object 1)
+  - "Thought: The cardboard needs to be constrained by heavy objects so it doesn't topple when hammered. I'll place the bookend next to it.\nAction: GRASP[bookend.n.01_1]"
+
+  # Step 7: Place bookend next to cardboard (constraint 1/3)
+  - "Thought: Place the bookend next to the cardboard to constrain it.\nAction: PLACE_NEXT_TO[cardboard.n.01_1]"
+
+  # Step 8: Pick up fuel_can (heavy object 2)
+  - "Thought: I need a second heavy object to constrain the cardboard. I'll use the fuel can.\nAction: GRASP[fuel__can.n.01_1]"
+
+  # Step 9: Place fuel_can next to cardboard (constraint 2/3)
+  - "Thought: Place the fuel can next to the cardboard as a second constraint.\nAction: PLACE_NEXT_TO[cardboard.n.01_1]"
+
+  # Step 10: Pick up canister (heavy object 3)
+  - "Thought: I need a third heavy object. I'll use the canister.\nAction: GRASP[canister.n.02_1]"
+
+  # Step 11: Place canister next to cardboard (constraint 3/3)
+  - "Thought: Place the canister next to the cardboard as the third constraint. Now the cardboard is fully constrained.\nAction: PLACE_NEXT_TO[cardboard.n.01_1]"
+
+  # Step 12: Pick up hammer
+  - "Thought: All constraints are in place. Now I pick up the hammer to drive the nail.\nAction: GRASP[hammer.n.02_1]"
+
+  # Step 13: Hammer the nail into the wall
+  - "Thought: Everything is ready. Strike the nail with the hammer to drive it into the wall.\nAction: HAMMER[clout_nail.n.01_1, hammer.n.02_1]"
+
+  # Step 14: Done
+  - "Thought: The nail is now nailed into the wall. Task complete.\nAction: DONE[]"

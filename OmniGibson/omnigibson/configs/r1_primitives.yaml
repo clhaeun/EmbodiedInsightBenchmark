@@ -2,6 +2,7 @@ env:
   action_frequency: 30                  # (int): environment executes action at the action_frequency rate
   physics_frequency: 120                # (int): physics frequency (1 / physics_timestep for physx)
   device: null                          # (None or str): specifies the device to be used if running on the gpu with torch backend
+  initial_pos_z_offset: 0.1
   automatic_reset: false                # (bool): whether to automatic reset after an episode finishes
   flatten_action_space: false           # (bool): whether to flatten the action space as a sinle 1D-array
   flatten_obs_space: false              # (bool): whether the observation space should be flattened when generated
@@ -9,8 +10,8 @@ env:
   external_sensors: null                # (None or list): If specified, list of sensor configurations for external sensors to add. Should specify sensor "type" and any additional kwargs to instantiate the sensor. Each entry should be the kwargs passed to @create_sensor, in addition to position, orientation
 
 render:
-  viewer_width: 1280
-  viewer_height: 720
+  viewer_width: 1920
+  viewer_height: 1080
 
 scene:
   type: InteractiveTraversableScene
@@ -39,34 +40,7 @@ robots:
     action_normalize: false
     action_type: continuous
     grasping_mode: sticky
-    reset_joint_pos: [
-      0.0000,
-      -0.0000,
-      0.0247,
-      0.0009,
-      0.0004,
-      -0.0000,
-      0.0000,
-      0.0000,
-      0.0000,
-      0.0000,
-      -0.0464,
-      0.0464,
-      2.6172,
-      2.6168,
-      -1.4584,
-      -1.4570,
-      -0.0433,
-      0.0418,
-      1.5899,
-      -1.5896,
-      -1.1587,
-      1.1593,
-      0.0300,
-      0.0300,
-      0.0300,
-      0.0300,
-    ]
+    default_reset_mode: untuck
     sensor_config:
       VisionSensor:
         sensor_kwargs:

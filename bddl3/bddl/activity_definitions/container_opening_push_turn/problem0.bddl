@@ -1,0 +1,21 @@
+(define (problem container_opening_push_turn-0)
+    (:domain omnigibson)
+
+    (:objects
+        hinged_jar.n.01_1 - hinged_jar.n.01
+        key.n.01_1 - key.n.01
+        countertop.n.01_1 - countertop.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        (ontop hinged_jar.n.01_1 countertop.n.01_1)
+        (inside key.n.01_1 hinged_jar.n.01_1)
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal (ontop key.n.01_1 countertop.n.01_1))
+)

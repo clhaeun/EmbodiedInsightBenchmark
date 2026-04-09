@@ -1,0 +1,16 @@
+# Local Qwen model via vLLM server
+# Start server first:
+#   python -m vllm.entrypoints.openai.api_server \
+#     --model ~/models/qwen2.5-14b-instruct --port 8000
+type: local
+system_message: "You are a robot agent controlling a mobile manipulator in a household environment."
+keep_message_history: false
+verbose: true
+generation_params:
+  model: "qwen2.5-14b-instruct"
+  api_base: "http://localhost:8000/v1"
+  api_key: "dummy"
+  max_tokens: 1024
+  temperature: 0
+  top_p: 1
+  stop: null

@@ -1,0 +1,32 @@
+(define (problem slatted_grill_cleaning-0)
+    (:domain omnigibson)
+
+    (:objects
+        scraper.n.01_1 - scraper.n.01
+        grill.n.02_1 - grill.n.02
+        broken__glass.n.01_1 broken__glass.n.01_2 broken__glass.n.01_3 broken__glass.n.01_4 broken__glass.n.01_5 broken__glass.n.01_6 broken__glass.n.01_7 broken__glass.n.01_8 - broken__glass.n.01
+        countertop.n.01_1 - countertop.n.01
+        floor.n.01_1 - floor.n.01
+        agent.n.01_1 - agent.n.01
+    )
+
+    (:init
+        (ontop scraper.n.01_1 countertop.n.01_1)
+        (ontop grill.n.02_1 countertop.n.01_1)
+        (ontop broken__glass.n.01_1 grill.n.02_1)
+        (ontop broken__glass.n.01_2 grill.n.02_1)
+        (ontop broken__glass.n.01_3 grill.n.02_1)
+        (ontop broken__glass.n.01_4 grill.n.02_1)
+        (ontop broken__glass.n.01_5 grill.n.02_1)
+        (ontop broken__glass.n.01_6 grill.n.02_1)
+        (ontop broken__glass.n.01_7 grill.n.02_1)
+        (ontop broken__glass.n.01_8 grill.n.02_1)
+        (inroom countertop.n.01_1 kitchen)
+        (inroom floor.n.01_1 kitchen)
+        (ontop agent.n.01_1 floor.n.01_1)
+    )
+
+    (:goal
+        (not (ontop broken__glass.n.01_1 grill.n.02_1))
+    )
+)

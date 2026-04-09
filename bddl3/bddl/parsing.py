@@ -399,18 +399,19 @@ def gen_natural_language_condition(parsed_condition, indent=0):
                 )
 
         else:
-            # print(indent)
+            # Predicates that act as verbs (no "is" before them)
+            VERB_PREDS = {"contains", "exists", "real"}
             if len(term) == 2:
-                # fixed_term1 = term[1].lstrip('?').split('.')[0]
-                # if '_' in term[1]:
-                #     fixed_term1 += term[1].split('_')[-1]
                 article1 = "the " if "_" not in term[1] else ""
                 desc = (
                     READABLE_PREDICATE_NAMES[term[0]]
                     if term[0] in READABLE_PREDICATE_NAMES
                     else term[0]
                 )
-                yield f"{indent_string}{article1}{nlterm(term[1])} is {desc}"
+                if term[0] in VERB_PREDS:
+                    yield f"{indent_string}{article1}{nlterm(term[1])} {desc}"
+                else:
+                    yield f"{indent_string}{article1}{nlterm(term[1])} is {desc}"
             elif len(term) == 3:
                 article1 = "the " if "_" not in term[1] else ""
                 article2 = "the " if "_" not in term[2] else ""
@@ -419,7 +420,10 @@ def gen_natural_language_condition(parsed_condition, indent=0):
                     if term[0] in READABLE_PREDICATE_NAMES
                     else term[0]
                 )
-                yield f"{indent_string}{article1}{nlterm(term[1])} is {desc} {article2}{nlterm(term[2])}"
+                if term[0] in VERB_PREDS:
+                    yield f"{indent_string}{article1}{nlterm(term[1])} {desc} {article2}{nlterm(term[2])}"
+                else:
+                    yield f"{indent_string}{article1}{nlterm(term[1])} is {desc} {article2}{nlterm(term[2])}"
 
     else:
         raise ValueError("encountered non-list:", term)
@@ -430,8 +434,10 @@ def nlterm(term):
     natural_term = term.lstrip("?")
     natural_term = natural_term.split(".")[0]
     if "_" in term:
-        # print('it is present')
-        natural_term += term.split("_")[-1]
+        last = term.split("_")[-1]
+        # Only append if it's an instance number (pure digits)
+        if last.isdigit():
+            natural_term += last
     return natural_term
 
 

@@ -1,0 +1,43 @@
+# Mock LLM: ground-truth (oracle) action sequence for tear_paper_along_a_ruler
+#
+# All objects are on the same countertop.
+#
+# Physical reasoning:
+#   1. Place the ruler ON the sheet (to guide the tear line)
+#   2. Place a heavy object ON the ruler (to hold it down)
+#   3. Grasp the sheet and tear along the ruler edge
+#
+# Oracle sequence:
+#   1. NAVIGATE_TO countertop
+#   2. GRASP ruler → PLACE_ON_TOP sheet (ruler guides the tear)
+#   3. GRASP stapler → PLACE_ON_TOP ruler (stapler holds ruler down)
+#   4. TEAR sheet (tear along the stabilized ruler — no need to grasp sheet)
+#   5. DONE
+#
+# Usage:
+#   python -m omnigibson.examples.llm_agent.run_llm_agent \
+#     --model mock --task tear_paper_along_a_ruler \
+#     --scene house_single_floor --robot Fetch --symbolic
+
+type: mock
+responses:
+  # Step 1: Navigate to the countertop (all objects are here)
+  - "Thought: All objects are on the countertop. I need to navigate there first.\nAction: NAVIGATE_TO[countertop.n.01_1]"
+
+  # Step 2: Grasp the ruler
+  - "Thought: I need to place the ruler on top of the paper to guide a straight tear line.\nAction: GRASP[rule.n.12_1]"
+
+  # Step 3: Place ruler on top of the sheet (ruler guides the tear)
+  - "Thought: Place the ruler on the paper so the tear follows the ruler edge.\nAction: PLACE_ON_TOP[sheet.n.02_1]"
+
+  # Step 4: Grasp the stapler (small heavy object to hold ruler down)
+  - "Thought: Now I need a heavy object to hold the ruler in place. The stapler is small enough to fit on the ruler.\nAction: GRASP[stapler.n.01_1]"
+
+  # Step 5: Place stapler on top of the ruler (stabilize ruler)
+  - "Thought: Place the stapler on the ruler to weigh it down so it won't slide during tearing.\nAction: PLACE_ON_TOP[rule.n.12_1]"
+
+  # Step 6: Tear the paper along the ruler
+  - "Thought: The ruler is stabilized with the stapler. Now I tear the paper along the ruler edge.\nAction: TEAR[sheet.n.02_1]"
+
+  # Step 7: Done
+  - "Thought: The paper has been torn along a clean straight line. Task complete.\nAction: DONE[]"

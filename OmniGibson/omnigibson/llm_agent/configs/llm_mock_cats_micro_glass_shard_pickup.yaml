@@ -1,0 +1,129 @@
+# Mock LLM responses for CATS Task 2.3-D: Micro Glass Shard Pickup with Potato
+# Oracle (GT) sequence — 4-stage structure
+#
+# Changes from v1:
+#   - Exploration feedbacks are raw sensor data (tactile array, force, physical properties)
+#   - Demo labels removed — agent identifies tools from video
+#   - broom added as CA tool candidate
+#   - Selecting "potato" = tool selection correct; CUT required for execution success
+#
+# Stage 1: Exploration (3 explore + DONE_EXPLORING)
+# Probe 1: Metacognitive probe
+# Stage 2: Demo observation
+# Probe 2: Metacognitive probe
+# Tool Selection Step: Choice + plan with CUT and NEW_ACTION
+# Stage 3: Adaptive Execution (7 action steps)
+# Probe 3: Metacognitive probe (Stage 3)
+
+responses:
+  # === Stage 1: Exploration (4 responses) ===
+
+  - |
+    Thought: I need to see the spill area on the kitchen floor.
+    Action: NAVIGATE_TO[kitchen_floor, spill_area]
+
+  - |
+    Thought: I can see tiny glints scattered on tiles and grout lines. Let me touch the surface to get tactile data.
+    Action: TOUCH[floor, spill_area]
+
+  - |
+    Thought: The tactile array shows mostly-zero baseline with sharp pressure spikes (5.7-9.1 kPa) at isolated cells — indicating micro-scale hard, pointed objects scattered on the surface. Let me check available tools.
+    Action: NAVIGATE_TO[countertop, scan]
+
+  - |
+    Thought: I have the key sensor data. The tactile array indicates micro sharp particles embedded in the floor surface. Localized high-pressure spikes (8-9 kPa) against a near-zero background. I see several tools on the countertop including a potato, lettuce, broccoli, vacuum, sponge, broom, and knife.
+    Action: DONE_EXPLORING[]
+
+  # === Metacognitive Probe 1 ===
+
+  - |
+    Key features from sensor data: (1) Tactile array shows isolated high-pressure spikes (5.7-9.1 kPa) against a near-zero background — this indicates micro-scale sharp particles scattered across the surface, not a uniform coating; (2) The particles are on tile with grout lines — an uneven surface with recessed channels; (3) The pressure spike pattern is consistent with particles that are partially embedded rather than loose on the surface; (4) Among the tools on the countertop, the potato has high surface hardness (Shore A 78) and very low moisture (0.02) in its current state — suggesting its exterior surface would not be effective for adhesion-based capture without modification.
+
+  # === Stage 2: Demo Observation ===
+
+  - |
+    I have observed all six demonstrations. Each shows a different approach to interacting with small particles or debris on various surfaces. I need to identify what tool/material is used in each and extract the underlying physical principle.
+
+  # === Metacognitive Probe 2 ===
+
+  - |
+    Demo 1: A soft, pliable material is pressed onto a surface with micro debris. The material deforms into surface irregularities and debris embeds into its matrix. Principle: deformable adhesive matrix captures embedded micro particles. Similar to my situation: micro particles on a grooved surface. The tool appears to be a malleable substance with internal moisture/adhesion.
+
+    Demo 2: Thin, flexible leaves are used to wrap larger objects. Principle: flexible sheet envelops target. Different: my particles are micro-scale and sharp — a thin sheet would be pierced and torn. No adhesive capture mechanism.
+
+    Demo 3: Dense bristle structures rotating against a surface to dislodge debris. Principle: mechanical scrubbing with fine bristles. Different: my particles are embedded, not loose. Bristle contact would not dislodge embedded shards, and the bristle structure has no adhesive property.
+
+    Demo 4: Strong suction pulling particles through a tube into a collection chamber. Principle: airflow-based particle collection. Different: my particles are physically embedded in grout — suction cannot overcome mechanical embedding. Risk of particle fragmentation during high-speed transit.
+
+    Demo 5: A soft, porous material is pressed wet against a surface. Principle: moist absorption with surface contact. Different: while soft, the porous structure would trap sharp particles internally, creating a secondary hazard. No firm embedding mechanism — particles sit in pores loosely.
+
+    Demo 6: Stiff bristles on a long handle sweep debris across a surface. Principle: mechanical displacement by sweeping. Different: my particles are too small and flat for bristle tips to catch, and embedded particles cannot be displaced by lateral force.
+
+  # === Tool Selection Step ===
+
+  - |
+    (1) I reference Demo 1. The principle — pressing a deformable, adhesive semi-solid matrix onto a surface so micro particles embed into the matrix — directly matches my constraints. The matrix must deform into grout line gaps under pressure.
+
+    (2) I select potato.
+
+    (3) The sensor data shows:
+    - Tactile pressure spikes (5.7-9.1 kPa) at isolated points → micro sharp embedded particles
+    - Pre/post wipe data identical → particles cannot be mechanically displaced
+    - Grout line surface → tool must deform into recessed channels
+
+    The potato currently has hardness 78 (Shore A) and moisture 0.02 — the exterior skin is too hard and dry. But cutting it in half exposes the interior: starch-rich, moist, soft tissue that:
+    - Deforms under pressure into grout gaps (unlike the hard skin)
+    - Has starch adhesion to capture micro particles
+    - Embeds sharp particles safely within the tissue matrix
+    - Is thick enough to prevent shard penetration to the hand
+
+    (4) Action plan:
+    1. NAVIGATE_TO[countertop_kelzer_0]
+    2. GRASP[carving_knife_707]
+    3. CUT[potato_701, carving_knife_707]
+    4. RELEASE[]
+    5. GRASP[half_potato_701_0]
+    6. NAVIGATE_TO[broken_glass_711]
+    7. NEW_ACTION[PRESS_AND_PICK, half_potato_701_0, broken_glass_711]: "Press the cut potato cross-section firmly onto the tile floor. Deform into grout lines under pressure. The starchy moist matrix captures and embeds micro glass shards."
+
+  # === Stage 3: Adaptive Execution (7 action steps) ===
+
+  - |
+    Thought: Go to the countertop to get the knife and prepare the potato.
+    Action: NAVIGATE_TO[countertop_kelzer_0]
+
+  - |
+    Thought: Grab the knife. It is a general tool, not a CA tool candidate.
+    Action: GRASP[carving_knife_707]
+
+  - |
+    Thought: Cut the potato to expose the starchy interior. The sensor data showed hardness 78 and moisture 0.02 on the skin — the interior will be much softer and moister.
+    Action: CUT[potato_701, carving_knife_707]
+
+  - |
+    Thought: Release the knife.
+    Action: RELEASE[]
+
+  - |
+    Thought: Pick up the half potato. This commits my CA tool choice.
+    Action: GRASP[half_potato_701_0]
+
+  - |
+    Thought: Move to the spill area.
+    Action: NAVIGATE_TO[broken_glass_711]
+
+  - |
+    Thought: Following Demo 1's principle — press the deformable adhesive matrix onto the surface so particles embed into it. The starchy cross-section should deform into grout line gaps under pressure.
+    Action: NEW_ACTION[PRESS_AND_PICK, half_potato_701_0, broken_glass_711]: "Press the cut potato cross-section firmly onto the tile floor, deforming into grout lines. The starchy moist matrix captures and embeds the micro glass shards."
+
+  - |
+    Thought: The pickup is complete. All glass shards have been captured in the potato matrix.
+    Action: DONE[]
+
+  # === Metacognitive Probe 3 (Stage 3) ===
+
+  - |
+    Yes, I adapted the approach from Demo 1 in three ways:
+    1. Material preparation: Demo 1 used a pre-made malleable putty. The potato required preprocessing — cutting with a knife to expose the starchy interior. The sensor data (hardness 78, moisture 0.02) confirmed the skin was unsuitable; the cut cross-section has much lower hardness and higher moisture.
+    2. Surface conformity: Demo 1's surface had relatively uniform texture. The kitchen tile has deep, regular grout lines requiring more deliberate pressure to ensure the potato tissue deformed into each channel.
+    3. Safety consideration: Demo 1 dealt with inert fossil debris. Glass shards are sharp — the potato's thickness (several cm) provides a safety buffer that a thinner adhesive material would not.

@@ -1,3 +1,4 @@
+.env
 gha-creds-*.json
 /site
 .vscode
@@ -6,3 +7,15 @@ gha-creds-*.json
 # training
 outputs/
 /*.ipynb
+
+# demo videos & experiment results
+.demos/
+experiments/
+OmniGibson/experiments/
+Embodied-InsightBench/
+
+# temp test files
+OmniGibson/test_bedrock_only.py
+OmniGibson/test_llm_connections.py
+test_sf_aabb.py
+test_sf_scene.py

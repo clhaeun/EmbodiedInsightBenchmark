@@ -1,0 +1,57 @@
+# Mock LLM: ground-truth action sequence for sweep_dustpan (Method 1 — wall + heavy object)
+#
+# Correct sequence:
+#   1. Navigate to floor → GRASP dustpan → Navigate to wall → PLACE_NEXT_TO wall
+#   2. Navigate to floor → GRASP textbook → Navigate to wall → PLACE_ON_TOP dustpan
+#   3. Navigate to floor → GRASP broom
+#   4. SWEEP floor_landing  (gather crumbs from floor to landing area near dustpan)
+#   5. Navigate to wall → SWEEP dustpan
+#   6. DONE
+#
+# Note: dustpan/textbook/broom are movable objects on the floor.
+#   NAVIGATE_TO only accepts fixed objects, so we navigate to floor (where they rest)
+#   or wall/furniture (where dustpan is placed against).
+#
+type: mock
+responses:
+  # Step 1: Navigate to floor where the dustpan is
+  - "Thought: I need to set up the dustpan against a wall so it doesn't slide away. The dustpan is on the floor, so I'll navigate there.\nAction: NAVIGATE_TO[floor.n.01_1]"
+
+  # Step 2: Pick up the dustpan
+  - "Thought: I'm near the dustpan on the floor. I'll pick it up.\nAction: GRASP[dustpan.n.02_1]"
+
+  # Step 3: Navigate to the wall
+  - "Thought: I need to place the dustpan against the wall for support. I'll navigate to the wall.\nAction: NAVIGATE_TO[wall.n.01_1]"
+
+  # Step 4: Place dustpan next to the wall (solves limitation 1: sliding)
+  - "Thought: I'll place the dustpan against the wall so it has support from behind and won't slide away.\nAction: PLACE_NEXT_TO[wall.n.01_1]"
+
+  # Step 5: Navigate to floor where the textbook is
+  - "Thought: The dustpan entrance still lifts off the ground. I need a heavy object to weigh it down. The textbook is on the floor.\nAction: NAVIGATE_TO[floor.n.01_1]"
+
+  # Step 6: Pick up the textbook
+  - "Thought: I'm near the textbook. I'll pick it up.\nAction: GRASP[textbook.n.01_1]"
+
+  # Step 7: Navigate to the wall (dustpan is now next to the wall)
+  - "Thought: I need to go back to the dustpan to place the textbook on top of it. The dustpan is next to the wall.\nAction: NAVIGATE_TO[wall.n.01_1]"
+
+  # Step 8: Place textbook on top of the dustpan (solves limitation 2: entrance lifting)
+  - "Thought: I'll place the textbook on top of the dustpan to press the entrance flat against the ground.\nAction: PLACE_ON_TOP[dustpan.n.02_1]"
+
+  # Step 9: Navigate to floor where the broom is
+  - "Thought: The dustpan is fully secured. Time to get the broom. It's on the floor.\nAction: NAVIGATE_TO[floor.n.01_1]"
+
+  # Step 10: Pick up the broom
+  - "Thought: I'm near the broom. I'll pick it up.\nAction: GRASP[broom.n.01_1]"
+
+  # Step 11: Sweep breadcrumbs from the floor to the floor landing (gathering step)
+  - "Thought: I need to gather all the breadcrumbs scattered on the floor toward the dustpan area.\nAction: SWEEP[floor_landing.n.01_1]"
+
+  # Step 12: Navigate to the wall (dustpan is against the wall)
+  - "Thought: I need to go to the dustpan area to sweep the gathered crumbs into it. The dustpan is against the wall.\nAction: NAVIGATE_TO[wall.n.01_1]"
+
+  # Step 13: Sweep gathered breadcrumbs into the dustpan
+  - "Thought: The breadcrumbs are gathered near the dustpan. Now I'll sweep them into the dustpan.\nAction: SWEEP[dustpan.n.02_1]"
+
+  # Step 14: Done
+  - "Thought: The breadcrumbs have been swept into the dustpan and the floor is clean. Task complete.\nAction: DONE[]"

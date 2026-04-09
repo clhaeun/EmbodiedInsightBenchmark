@@ -6,7 +6,18 @@ ACTIVITY_CONFIGS_PATH = os.path.join(os.path.dirname(__file__), "activity_defini
 # BDDL
 SUPPORTED_BDDL_REQUIREMENTS = [":strips", ":negative-preconditions", ":typing", ":adl"]
 
-READABLE_PREDICATE_NAMES = {"ontop": "on top of", "nextto": "next to"}
+READABLE_PREDICATE_NAMES = {
+    "ontop": "on top of",
+    "nextto": "next to",
+    "real": "exists",
+    "covered": "covered with",
+    "saturated": "saturated with",
+    "filled": "filled with",
+    "toggled_on": "toggled on",
+    "draped": "draped over",
+    "overlaid": "overlaid on",
+    "attached": "attached to",
+}
 
 
 def get_definition_filename(behavior_activity, instance, domain=False):

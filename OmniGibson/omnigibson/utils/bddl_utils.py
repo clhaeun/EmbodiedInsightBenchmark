@@ -165,6 +165,22 @@ class ObjectStateBinaryPredicate(BinaryAtomicFormula):
     STATE_NAME = None
 
     def _evaluate(self, entity1, entity2, **kwargs):
+        if self.STATE_NAME == "covered":
+            import logging
+            _log = logging.getLogger("bddl_debug")
+            e2_exists = entity2.exists
+            e2_init = entity2.initialized if e2_exists else "N/A(not exists)"
+            _log.info(f"[BDDL] covered _evaluate: entity1={getattr(entity1, 'bddl_inst', '?')}, "
+                      f"entity2={getattr(entity2, 'bddl_inst', '?')}, "
+                      f"e2.exists={e2_exists}, e2.initialized={e2_init}, "
+                      f"e2.wrapped_obj={type(entity2.wrapped_obj).__name__ if e2_exists else 'None'}")
+            if e2_exists and e2_init:
+                result = entity1.get_state(self.STATE_CLASS, entity2.wrapped_obj, **kwargs)
+                _log.info(f"[BDDL] covered result={result}")
+                return result
+            else:
+                _log.info(f"[BDDL] covered short-circuit False (exists={e2_exists}, init={e2_init})")
+                return False
         return (
             entity1.get_state(self.STATE_CLASS, entity2.wrapped_obj, **kwargs)
             if (entity2.exists and entity2.initialized)
@@ -254,6 +270,12 @@ SUPPORTED_PREDICATES = {
     "folded": get_unary_predicate_for_state(object_states.Folded, "folded"),
     "unfolded": get_unary_predicate_for_state(object_states.Unfolded, "unfolded"),
     "draped": get_binary_predicate_for_state(object_states.Draped, "draped"),
+    "broken": get_unary_predicate_for_state(object_states.Broken, "broken"),
+    "high": get_unary_predicate_for_state(object_states.High, "high"),
+    "pierced": get_unary_predicate_for_state(object_states.Pierced, "pierced"),
+    "nailed": get_unary_predicate_for_state(object_states.Nailed, "nailed"),
+    "placed_against": get_binary_predicate_for_state(object_states.PlacedAgainst, "placed_against"),
+    "torn": get_unary_predicate_for_state(object_states.Torn, "torn"),
     "future": ObjectStateFuturePredicate,
     "real": ObjectStateRealPredicate,
     "insource": ObjectStateInsourcePredicate,
@@ -694,9 +716,12 @@ class BDDLEntity(Wrapper):
         Returns:
             any: Returned value(s) from @state if self.wrapped_obj exists (i.e.: not None), else False
         """
-        return (
-            self.wrapped_obj.states[state].get_value(*args, **kwargs) if (self.exists and self.initialized) else False
-        )
+        if not (self.exists and self.initialized):
+            return False
+        if state not in self.wrapped_obj.states:
+            # State not yet injected (e.g. custom states like Nailed, Pierced) — treat as False
+            return False
+        return self.wrapped_obj.states[state].get_value(*args, **kwargs)
 
     def set_state(self, state, *args, **kwargs):
         """
